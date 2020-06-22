@@ -8,6 +8,8 @@
 *.sasl
 *.plt
 *.app
+.deps.mk*
+.apps.mk*
 .deps.mk
 .deps.rules
 .test.deps
