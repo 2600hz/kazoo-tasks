@@ -43,7 +43,7 @@ cleanup_soft_deletes(?KZ_ACCOUNTS_DB) ->
     do_cleanup(?KZ_ACCOUNTS_DB);
 cleanup_soft_deletes(Account) ->
     kz_datamgr:suppress_change_notice(),
-    case kapps_util:is_account_db(Account) of
+    case kzs_util:is_account_db(Account) of
         'true' -> cleanup_account_soft_deletes(Account);
         'false' ->
             _ = kz_datamgr:enable_change_notice(),

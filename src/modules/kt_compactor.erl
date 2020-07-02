@@ -114,9 +114,9 @@ set_node_defaults(NodeJObj) ->
 
 -spec set_node_api_port(kz_term:ne_binary()) -> 'ok'.
 set_node_api_port(Node) ->
-    case kapps_config:get_integer(?SYSCONFIG_COUCH, <<"api_port">>, 'undefined', Node) of
+    case kapps_config:get_integer(<<"kazoo_couch">>, <<"api_port">>, 'undefined', Node) of
         'undefined' ->
-            _ = kapps_config:set_node(?SYSCONFIG_COUCH, <<"api_port">>, ?API_PORT, Node),
+            _ = kapps_config:set_node(<<"kazoo_couch">>, <<"api_port">>, ?API_PORT, Node),
             lager:debug("api port for ~s set to default: ~p", [Node, ?API_PORT]);
         _Port ->
             lager:debug("api port for ~s already set: ~p", [Node, _Port])
@@ -124,9 +124,9 @@ set_node_api_port(Node) ->
 
 -spec set_node_admin_port(kz_term:ne_binary()) -> 'ok'.
 set_node_admin_port(Node) ->
-    case kapps_config:get_integer(?SYSCONFIG_COUCH, <<"admin_port">>, 'undefined', Node) of
+    case kapps_config:get_integer(<<"kazoo_couch">>, <<"admin_port">>, 'undefined', Node) of
         'undefined' ->
-            _ = kapps_config:set_node(?SYSCONFIG_COUCH, <<"admin_port">>, ?ADMIN_PORT, Node),
+            _ = kapps_config:set_node(<<"kazoo_couch">>, <<"admin_port">>, ?ADMIN_PORT, Node),
             lager:debug("admin port for ~s set to default: ~p", [Node, ?ADMIN_PORT]);
         _Port ->
             lager:debug("admin port for ~s already set: ~p", [Node, _Port])
@@ -354,7 +354,7 @@ do_compact_node_db(Compactor) ->
     AfterCols = db_usage_cols(Conn, Database),
     [kt_compactor_worker:compactor_node(Compactor)
     ,Database
-     | BeforeCols
+    | BeforeCols
     ] ++ AfterCols.
 
 -spec do_compact_db(kz_term:ne_binary()) -> rows().
@@ -627,8 +627,8 @@ cleanup_pass(Db) ->
 
 -spec db_to_trigger(kz_term:ne_binary()) -> kz_term:ne_binary().
 db_to_trigger(Db) ->
-    Classifiers = [{fun kapps_util:is_account_db/1, ?TRIGGER_ACCOUNT}
-                  ,{fun kapps_util:is_account_mod/1, ?TRIGGER_ACCOUNT_MOD}
+    Classifiers = [{fun kzs_util:is_account_db/1, ?TRIGGER_ACCOUNT}
+                  ,{fun kzs_util:is_account_mod/1, ?TRIGGER_ACCOUNT_MOD}
                   ,{fun is_system_db/1, ?TRIGGER_SYSTEM}
                   ],
     db_to_trigger(Db, Classifiers).
