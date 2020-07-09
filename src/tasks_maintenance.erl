@@ -292,7 +292,7 @@ print_compaction_history_row(JObj, FStr) ->
           ,Str([<<"databases">>, <<"found">>])
           ,Str([<<"databases">>, <<"compacted">>])
           ,Str([<<"databases">>, <<"skipped">>])
-          ,kz_util:pretty_print_bytes(DiskStartInt - DiskEndInt, 'truncated')
+          ,kz_term:pretty_print_bytes(DiskStartInt - DiskEndInt, 'truncated')
           ,kz_term:to_list(kz_time:pretty_print_datetime(StartInt))
           ,kz_term:to_list(kz_time:pretty_print_datetime(EndInt))
           ,kz_term:to_list(kz_time:pretty_print_elapsed_s(EndInt - StartInt))

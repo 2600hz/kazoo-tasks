@@ -175,7 +175,7 @@ store_return(#state{task_id = TaskId
             ,Reason
             ) ->
     Data = [reason(OutputHeader, Reason)],
-    kz_util:write_file(?OUT(TaskId), Data, ['append']),
+    kz_os:write_file(?OUT(TaskId), Data, ['append']),
     NewColumns = columns(OutputHeader, Reason),
     {NewColumns, 1}.
 
