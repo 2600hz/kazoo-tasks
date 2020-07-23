@@ -171,7 +171,7 @@ worker_finished(TaskId, Columns) ->
     CSVPath = output_path(TaskId),
     _ = try_maybe_strip_columns(Columns, CSVPath),
     {'ok', CSV} = file:read_file(CSVPath),
-    lager:debug("csv size is ~s", [kz_util:pretty_print_bytes(byte_size(CSV))]),
+    lager:debug("csv size is ~s", [kz_term:pretty_print_bytes(byte_size(CSV))]),
     Max = ?UPLOAD_ATTEMPTS,
     attempt_upload(TaskId, ?KZ_TASKS_ANAME_OUT, CSV, CSVPath, Max, Max).
 
@@ -196,7 +196,7 @@ maybe_strip_columns(Columns, CSVPath, ColumnsWritten) ->
     lager:debug("attempting to strip empty columns, keeping only ~p", [ColumnsWritten]),
     {'ok', Bin} = file:read_file(CSVPath),
     {FullHeader, CSV} = kz_csv:take_row(Bin),
-    lager:debug("csv size is ~s", [kz_util:pretty_print_bytes(byte_size(CSV))]),
+    lager:debug("csv size is ~s", [kz_term:pretty_print_bytes(byte_size(CSV))]),
     case length(FullHeader) of
         ColumnsWritten -> 'ok';
         MightHaveEmpty when ColumnsWritten < MightHaveEmpty ->
@@ -249,7 +249,7 @@ attempt_upload(TaskId, AName, CSV, CSVPath, Retries, Max) ->
     case kz_datamgr:put_attachment(?KZ_TASKS_DB, TaskId, AName, CSV, Options) of
         {'ok', _TaskJObj} ->
             lager:debug("saved ~s after ~p attempts", [AName, Max-Retries+1]),
-            kz_util:delete_file(CSVPath);
+            kz_os:delete_file(CSVPath);
         {'error', _R} ->
             lager:debug("upload of ~s failed (~s), may retry soon", [TaskId, _R]),
             Pause = ?MILLISECONDS_IN_SECOND * ?PAUSE_BETWEEN_UPLOAD_ATTEMPTS,

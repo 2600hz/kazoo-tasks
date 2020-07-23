@@ -276,7 +276,7 @@ write_row(TaskId, Header, MappedRow) ->
 
 -spec write_row(kz_tasks:id(), iodata()) -> 1.
 write_row(TaskId, IOList) ->
-    kz_util:write_file(?OUT(TaskId), IOList, ['append']),
+    kz_os:write_file(?OUT(TaskId), IOList, ['append']),
     1.
 
 -spec columns(kz_csv:mapped_row()) -> kz_tasks:columns().
