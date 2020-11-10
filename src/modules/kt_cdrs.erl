@@ -116,7 +116,7 @@ rows_to_cdrs(Rows) ->
      || Row <- Rows
     ].
 
--spec get_page(kz_term:ne_biary(), kz_json:api_json_term()) -> kz_datamgr:paginated_results().
+-spec get_page(kz_term:ne_binary(), kz_json:api_json_term()) -> kz_datamgr:paginated_results().
 get_page(AccountDb, 'undefined') ->
     query(AccountDb, []);
 get_page(AccountDb, NextStartKey) ->
