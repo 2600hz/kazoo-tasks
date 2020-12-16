@@ -151,12 +151,12 @@ export(_ExtraArgs, State) ->
             {Rows, 'stop'}
     end.
 
--spec import(kz_tasks:extra_args(), dict:dict() | kz_tasks:iterator(), kz_tasks:args()) -> kz_tasks:iterator().
+-spec import(kz_tasks:extra_args(), map() | kz_tasks:iterator(), kz_tasks:args()) -> kz_tasks:iterator().
 import(ExtraArgs, 'init', Args) ->
     case is_allowed(ExtraArgs) of
         'true' ->
             lager:info("import is allowed, continuing"),
-            import(ExtraArgs, dict:new(), Args);
+            import(ExtraArgs, #{}, Args);
         'false' ->
             lager:warning("rates importing is forbidden for account ~s, auth account ~s"
                          ,[maps:get('account_id', ExtraArgs)
@@ -165,24 +165,26 @@ import(ExtraArgs, 'init', Args) ->
                          ),
             {<<"task execution is forbidden">>, 'stop'}
     end;
-import(_ExtraArgs, Dict, Args) ->
+import(_ExtraArgs, Map, Args) ->
     Rate = generate_row(Args, 'true'),
     Db = ratedeck_db(Rate),
 
     BulkLimit = kz_datamgr:max_bulk_insert(),
 
-    case dict:find(Db, Dict) of
-        'error' ->
-            lager:debug("adding prefix ~p to ratedeck '~s'", [kzd_rates:prefix(Rate), Db]),
-            {'ok', dict:store(Db, {1, [Rate]}, Dict)};
-        {'ok', {BulkLimit, Rates}} ->
+    case maps:get(Db, Map, 'undefined') of
+        'undefined' ->
+            lager:debug("adding rate ~s (prefix ~p) to ratedeck '~s'"
+                       ,[kz_doc:id(Rate), kzd_rates:prefix(Rate), Db]
+                       ),
+            {'ok', Map#{Db => {1, [Rate]}}};
+        {BulkLimit, Rates} ->
             lager:info("saving ~b rates to '~s'", [BulkLimit, Db]),
             kz_datamgr:suppress_change_notice(),
             save_rates(Db, [Rate | Rates]),
             kz_datamgr:enable_change_notice(),
-            {'ok', dict:store(Db, {0, []}, Dict)};
-        {'ok', {Size, Rates}} ->
-            {'ok', dict:store(Db, {Size+1, [Rate | Rates]}, Dict)}
+            {'ok', Map#{Db => {0, []}}};
+        {Size, Rates} ->
+            {'ok', Map#{Db => {Size+1, [Rate | Rates]}}}
     end.
 
 -spec delete(kz_tasks:extra_args(), kz_tasks:iterator(), kz_tasks:args()) -> kz_tasks:iterator().
@@ -240,9 +242,9 @@ delete(_ExtraArgs, State, Args) ->
 finish(<<"import">>, 'init') ->
     'ok';
 finish(<<"import">>, Dict) ->
-    _Size = dict:size(Dict),
+    _Size = maps:size(Dict),
     lager:info("importing ~p ratedeck~s", [_Size, maybe_plural(_Size)]),
-    _ = dict:map(fun import_rates_into_ratedeck/2, Dict);
+    _ = maps:map(fun import_rates_into_ratedeck/2, Dict);
 finish(<<"delete">>, 'init') ->
     kz_datamgr:enable_change_notice(),
     'ok';
@@ -255,20 +257,18 @@ finish(<<"delete">>, State) ->
     'ok'.
 
 -spec import_rates_into_ratedeck(kz_term:ne_binary(), {non_neg_integer(), kz_json:objects()}) -> 'true'.
-import_rates_into_ratedeck(Ratedeck, {0, []}) ->
-    RatedeckDb = kzd_ratedeck:format_ratedeck_db(Ratedeck),
+import_rates_into_ratedeck(RatedeckDb, {0, []}) ->
     kz_datamgr:enable_change_notice(),
     lager:debug("importing into ratedeck '~s' complete", [RatedeckDb]),
     kzs_publish:publish_db(RatedeckDb, <<"edited">>);
-import_rates_into_ratedeck(Ratedeck, {_C, Rates}) ->
-    RatedeckDb = kzd_ratedeck:format_ratedeck_db(Ratedeck),
+import_rates_into_ratedeck(RatedeckDb, {_C, Rates}) ->
     lager:debug("importing ~p rate~s into ratedeck '~s'"
                ,[_C, maybe_plural(_C), RatedeckDb]
                ),
 
     kz_datamgr:suppress_change_notice(),
     save_rates(RatedeckDb, Rates),
-    import_rates_into_ratedeck(Ratedeck, {0, []}).
+    import_rates_into_ratedeck(RatedeckDb, {0, []}).
 
 -spec maybe_plural(pos_integer()) -> string().
 maybe_plural(1) -> "";
