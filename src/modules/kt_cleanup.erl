@@ -28,7 +28,7 @@
 
 
 -define(DEFAULT_CLEANUP
-       ,kz_json:from_list_recursive(
+       ,kz_json:from_list(
           [{<<"classifications">>, [<<"account">>
                                    ,<<"modb">>
                                    ,<<"yodb">>
@@ -131,9 +131,9 @@ build_id_rev(JObj0, Acc) ->
                                  ,kz_json:get_ne_json_value(<<"doc">>, JObj0, JObj0)
                                  ),
     [kz_json:from_list(
-      [{<<"_id">>, kz_doc:id(JObj)}
-      ,{<<"_rev">>, kz_doc:revision(JObj)}
-      ])
+       [{<<"_id">>, kz_doc:id(JObj)}
+       ,{<<"_rev">>, kz_doc:revision(JObj)}
+       ])
     | Acc
     ].
 
