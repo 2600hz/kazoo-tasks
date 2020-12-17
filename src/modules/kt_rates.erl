@@ -377,7 +377,7 @@ save_rates(Db, Rates) ->
         %% Workaround, need to fix!
         %% We assume that is everything ok and try to refresh index
         {'error', _Reason} ->
-            laher:debug("failed to saved ~b rates to reatedeck ~s", [length(Rates), Db])
+            lager:debug("failed to saved ~b rates to reatedeck ~s", [length(Rates), Db])
     end.
 
 -spec delete_rates(map()) -> 'ok'.
