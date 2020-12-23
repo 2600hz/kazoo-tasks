@@ -492,6 +492,8 @@ should_delete_rate([], _) ->
 should_delete_rate([ReqRate | ReqRates], Doc) ->
     case kz_json:all(fun({_, <<>>}) ->
                              'true';
+                        ({<<"id">> = _ReqKey, ReqValue}) ->
+                             kz_doc:id(Doc, <<>>) =:= ReqValue;
                         ({ReqKey, ReqValue}) ->
                              kz_json:get_value(ReqKey, Doc, <<>>) =:= ReqValue
                      end
