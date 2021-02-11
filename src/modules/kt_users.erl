@@ -377,7 +377,8 @@ maybe_override_account_id(_URLAccountId, #{<<"account_id">> := AccountIdOverride
 %% If validation passes then save the user.
 %% @end
 %%------------------------------------------------------------------------------
--spec generate_validate_and_save_new_user(kz_type:ne_binary(), kz_tasks:args()) -> {'ok', kzd_users:doc()}  | {'error', kz_type:ne_binary()}.
+-spec generate_validate_and_save_new_user(kz_type:ne_binary(), kz_tasks:args()) ->
+          {'ok', kzd_users:doc()}  | {'error', kz_type:ne_binary()}.
 generate_validate_and_save_new_user(AccountId, Args) ->
     UserDoc = kz_tasks_utils:generate_new_doc_with_kazoo_doc_setters('kzd_users', Args),
     case kzd_users:validate(AccountId, 'undefined', UserDoc) of
@@ -387,9 +388,16 @@ generate_validate_and_save_new_user(AccountId, Args) ->
         {'validation_errors', ValidationErrors} ->
             lager:info("validation errors on new user"),
             {'error', kz_tasks_utils:merge_kazoo_doc_validation_errors(ValidationErrors)};
-        {'system_error', Error} ->
+        {'system_error', Error} when is_atom(Error) ->
             lager:info("system error validating user: ~p", [Error]),
-            {'error', Error}
+            ErrorBin = kz_term:to_binary(Error),
+            ReturnError = <<"System Error, ", ErrorBin/binary>>,
+            {'error', ReturnError};
+        {'system_error', {Error, Message}} ->
+            lager:info("system error validating user: ~p, ~s", [Error, Message]),
+            ErrorBin = kz_term:to_binary(Error),
+            ReturnError = <<"System Error, ", ErrorBin/binary, ", ", Message/binary>>,
+            {'error', ReturnError}
     end.
 
 %%------------------------------------------------------------------------------
