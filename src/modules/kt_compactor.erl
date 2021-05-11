@@ -1,5 +1,5 @@
 %%%-----------------------------------------------------------------------------
-%%% @copyright (C) 2013-2020, 2600Hz
+%%% @copyright (C) 2013-2021, 2600Hz
 %%% @doc
 %%% @author Pierre Fenoll
 %%%
@@ -323,9 +323,9 @@ do_compact_node(Node, Heuristic, APIConn, AdminConn, Databases) ->
     lists:foldl(fun(Database, Acc) ->
                         lager:debug("setting current_db to ~p on compaction reporter", [Database]),
                         'ok' = kt_compaction_reporter:current_db(CallId, Database),
-                        NewAcc = do_compact_node_db(Node, Heuristic, APIConn, AdminConn, Database, Acc),
+                        [Row | _] = NewAcc = do_compact_node_db(Node, Heuristic, APIConn, AdminConn, Database, Acc),
                         lager:debug("finished compacting ~p db on node ~p", [Database, Node]),
-                        'ok' = kt_compaction_reporter:finished_db(CallId, Database, NewAcc),
+                        'ok' = kt_compaction_reporter:finished_db(CallId, Database, Row),
                         NewAcc
                 end
                ,[]
@@ -470,16 +470,16 @@ get_node_connections(Node, #server{options=Options}) ->
             {'error', 'no_connection'}
     end.
 
--spec get_all_dbs_and_sort_by_disk() -> [db_and_sizes()].
+-spec get_all_dbs_and_sort_by_disk() -> dbs_and_sizes().
 get_all_dbs_and_sort_by_disk() ->
     sort_by_disk_size(get_dbs_and_sizes()).
 
--spec get_dbs_and_sizes() -> [db_and_sizes()].
+-spec get_dbs_and_sizes() -> dbs_and_sizes().
 get_dbs_and_sizes() ->
     {'ok', Dbs} = kz_datamgr:db_info(),
     get_dbs_sizes(Dbs).
 
--spec get_dbs_sizes(kz_term:ne_binaries()) -> [db_and_sizes()].
+-spec get_dbs_sizes(kz_term:ne_binaries()) -> dbs_and_sizes().
 get_dbs_sizes(Dbs) ->
     #{'server' := {_App, #server{}=Conn}} = kzs_plan:plan(),
     F = fun(Db, State) ->
@@ -490,9 +490,9 @@ get_dbs_sizes(Dbs) ->
 
 -spec get_db_disk_and_data_fold(#server{}
                                ,kz_term:ne_binary()
-                               ,{[db_and_sizes()], non_neg_integer()}
+                               ,{dbs_and_sizes(), non_neg_integer()}
                                ,pos_integer()
-                               ) -> {[db_and_sizes()], pos_integer()}.
+                               ) -> {dbs_and_sizes(), pos_integer()}.
 get_db_disk_and_data_fold(Conn, UnencDb, {_, Counter} = State, ChunkSize)
   when Counter rem ChunkSize =:= 0 ->
     %% Every `ChunkSize' handled requests, sleep `?COMPACTION_LIST_DBS_PAUSE'ms (give the db a rest).
@@ -504,8 +504,8 @@ get_db_disk_and_data_fold(Conn, UnencDb, State, _ChunkSize) ->
 
 -spec do_get_db_disk_and_data_fold(#server{}
                                   ,kz_term:ne_binary()
-                                  ,{[db_and_sizes()], non_neg_integer()}
-                                  ) -> {[db_and_sizes()], pos_integer()}.
+                                  ,{dbs_and_sizes(), non_neg_integer()}
+                                  ) -> {dbs_and_sizes(), pos_integer()}.
 do_get_db_disk_and_data_fold(Conn, UnencDb, {Acc, Counter}) ->
     EncDb = kz_http_util:urlencode(UnencDb),
 
@@ -519,7 +519,7 @@ do_get_db_disk_and_data_fold(Conn, UnencDb, {Acc, Counter}) ->
             }
     end.
 
--spec sort_by_disk_size([db_and_sizes()]) -> [db_and_sizes()].
+-spec sort_by_disk_size(dbs_and_sizes()) -> dbs_and_sizes().
 sort_by_disk_size(DbsSizes) when is_list(DbsSizes) ->
     lists:sort(fun sort_by_disk_size/2, DbsSizes).
 
@@ -613,7 +613,7 @@ trigger_db_cleanup(Db, {TotalDbs, Counter}) ->
     cleanup_pass(Db),
     {TotalDbs, Counter + 1}.
 
--spec list_and_sort_dbs_for_compaction() -> [db_and_sizes()].
+-spec list_and_sort_dbs_for_compaction() -> dbs_and_sizes().
 list_and_sort_dbs_for_compaction() ->
     lager:debug("getting databases list and sorting them by disk size"),
     Sorted = get_all_dbs_and_sort_by_disk(),

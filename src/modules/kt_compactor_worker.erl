@@ -1,5 +1,5 @@
 %%%-----------------------------------------------------------------------------
-%%% @copyright (C) 2013-2020, 2600Hz
+%%% @copyright (C) 2013-2021, 2600Hz
 %%% @doc Runs the compaction.
 %%%
 %%% Task consists of:
@@ -53,6 +53,8 @@
 
 -type compactor() :: #compactor{}.
 -type db_disk_and_data() :: {pos_integer(), pos_integer()} | 'undefined' | 'not_found'.
+-type db_info_resp() :: {'ok', kz_json:object()} | {'error', any()}.
+-type design_info_resp() :: {'ok', kz_json:object()} | {'error', any()}.
 -export_type([compactor/0
              ,db_disk_and_data/0
              ]).
@@ -109,16 +111,14 @@ wait_for_shards(PidRefs, {Pid, Ref}) ->
 
 -spec compact_shards(compactor()) -> kz_term:pid_refs().
 compact_shards(Compactor) ->
+    AdminConn = compactor_admin(Compactor),
     [spawn_monitor(?MODULE, 'compact_shard', [Compactor#compactor{shards=[Shard]}])
-     || Shard <- compactor_shards(Compactor)
+     || Shard <- compactor_shards(Compactor), not is_shard_being_compacted(AdminConn, Shard)
     ].
 
 -spec compact_shard(compactor()) -> 'ok'.
 compact_shard(#compactor{shards=[Shard]}=Compactor) ->
     kz_log:put_callid(<<"compact_shard_", Shard/binary>>),
-
-    %% Make sure this shard is not already being compacted before start compacting it.
-    wait_for_compaction(compactor_admin(Compactor), Shard),
 
     case get_db_disk_and_data(compactor_admin(Compactor), Shard) of
         'undefined' ->
@@ -142,13 +142,14 @@ start_compacting_shard(#compactor{shards=[Shard]}=Compactor) ->
 
 -spec continue_compacting_shard(compactor()) -> 'ok'.
 continue_compacting_shard(#compactor{shards=[Shard]}=Compactor) ->
-    wait_for_compaction(compactor_admin(Compactor), Shard),
+    %% Wait for compaction to finish on the current shard before start compacting design views.
+    wait_for_shard_compaction(compactor_admin(Compactor), Shard),
 
     %% cleans up old view indexes
     IsCleanup = kz_couch_db:db_view_cleanup(compactor_conn(Compactor), shard_to_db(Shard)),
     lager:debug("  is db view cleanup started ~s: ~s", [shard_to_db(Shard), IsCleanup]),
 
-    wait_for_compaction(compactor_admin(Compactor), Shard),
+    wait_for_shard_compaction(compactor_admin(Compactor), Shard),
 
     %% compacts views
     lager:debug("  design doc compaction starting for shard ~s", [Shard]),
@@ -169,7 +170,7 @@ compact_design_docs(Compactor, Shard, DDs) ->
     try lists:split(?MAX_COMPACTING_VIEWS, DDs) of
         {Compact, Remaining} ->
             IsStarted = [{DD, kz_couch_view:design_compact(Conn, Shard, DD)}
-                         || DD <- Compact
+                         || DD <- Compact, not is_design_being_compacted(Conn, Shard, DD)
                         ],
             lager:debug("  has shard ~s started compacting chunk of views: ~p", [Shard, IsStarted]),
             wait_for_design_compaction(compactor_admin(Compactor), Shard, Compact),
@@ -177,65 +178,127 @@ compact_design_docs(Compactor, Shard, DDs) ->
     catch
         'error':'badarg' ->
             IsStarted = [{DD, kz_couch_view:design_compact(Conn, Shard, DD)}
-                         || DD <- DDs
+                         || DD <- DDs, not is_design_being_compacted(Conn, Shard, DD)
                         ],
             lager:debug("  is shard ~s compacting last chunk of views started: ~p", [Shard, IsStarted]),
             wait_for_design_compaction(compactor_admin(Compactor), Shard, DDs)
     end.
 
--type db_info_resp() :: {'ok', kz_json:object()} |
-                        {'error', any()}.
--type design_info_resp() :: {'ok', kz_json:object()} |
-                            {'error', any()}.
-
+%%------------------------------------------------------------------------------
+%% @doc If Design document is being compacted, wait until it finishes the compaction process.
+%% @end
+%%------------------------------------------------------------------------------
 -spec wait_for_design_compaction(kz_data:connection(), kz_term:ne_binary(), kz_term:ne_binaries()) ->
           'ok'.
-wait_for_design_compaction(_, _, []) -> 'ok';
-wait_for_design_compaction(AdminConn, Shard, [DD|DDs]) ->
-    wait_for_design_compaction(AdminConn, Shard, DDs, DD, kz_couch_view:design_info(AdminConn, Shard, DD)).
+wait_for_design_compaction(AdminConn, Shard, DDs) ->
+    wait_for_design_compaction(AdminConn, Shard, DDs, 0).
 
--spec wait_for_design_compaction(kz_data:connection(), kz_term:ne_binary(), kz_term:ne_binaries(), kz_term:ne_binary(), design_info_resp()) ->
+-spec wait_for_design_compaction(kz_data:connection(), kz_term:ne_binary(), kz_term:ne_binaries(), 0..?WAIT_FOR_COMPACTION_MAX_RETRIES) ->
           'ok'.
-wait_for_design_compaction(AdminConn, Shard, DDs, DD, {'error', {'conn_failed', {'error', 'timeout'}}}) ->
-    lager:warning("timed out, waiting then retrying"),
-    'ok' = timer:sleep(?SLEEP_BETWEEN_POLL),
-    wait_for_design_compaction(AdminConn, Shard, DDs, DD, kz_couch_view:design_info(AdminConn, Shard, DD));
-wait_for_design_compaction(AdminConn, Shard, DDs, _DD, {'error', 'not_found'}) ->
-    lager:debug("compacting shard design docs not found"),
-    wait_for_design_compaction(AdminConn, Shard, DDs);
-wait_for_design_compaction(AdminConn, Shard, DDs, _DD, {'error', _E}) ->
-    lager:warning("failed design status for '~s/~s': ~p", [Shard, _DD, _E]),
-    'ok' = timer:sleep(?SLEEP_BETWEEN_POLL),
-    wait_for_design_compaction(AdminConn, Shard, DDs);
-wait_for_design_compaction(AdminConn, Shard, DDs, DD, {'ok', DesignInfo}) ->
-    case kz_json:is_true(<<"compact_running">>, DesignInfo, 'false') of
+wait_for_design_compaction(_, _, [], _Retries) -> 'ok';
+wait_for_design_compaction(AdminConn, Shard, [DD|DDs], Retries) when Retries < ?WAIT_FOR_COMPACTION_MAX_RETRIES ->
+    case is_design_being_compacted(AdminConn, Shard, DD) of
         'false' ->
+            lager:debug("compaction for ~p/~p finished", [Shard, DD]),
             wait_for_design_compaction(AdminConn, Shard, DDs);
         'true' ->
+            lager:debug("design still being compacted, waiting ~pms to re-check", [?SLEEP_BETWEEN_POLL]),
             'ok' = timer:sleep(?SLEEP_BETWEEN_POLL),
-            wait_for_design_compaction(AdminConn, Shard, DDs, DD, kz_couch_view:design_info(AdminConn, Shard, DD))
-    end.
+            wait_for_design_compaction(AdminConn, Shard, [DD|DDs], Retries + 1)
+    end;
+wait_for_design_compaction(AdminConn, Shard, [DD|DDs], Retries) ->
+    Time = kz_time:pretty_print_elapsed_s(kz_time:milliseconds_to_seconds(Retries * ?SLEEP_BETWEEN_POLL)),
+    lager:debug("compaction for design ~p/~p have not finished after ~~p, moving on", [Shard, DD, Time]),
+    wait_for_design_compaction(AdminConn, Shard, DDs).
 
--spec wait_for_compaction(kz_data:connection(), kz_term:ne_binary()) -> 'ok'.
-wait_for_compaction(AdminConn, Shard) ->
-    wait_for_compaction(AdminConn, Shard, kz_couch_db:db_info(AdminConn, Shard)).
+%%------------------------------------------------------------------------------
+%% @doc Is Design document currently being compacted?
+%% @end
+%%------------------------------------------------------------------------------
+-spec is_design_being_compacted(kz_data:connection(), kz_term:ne_binary(), kz_term:ne_binary()) ->
+          boolean().
+is_design_being_compacted(AdminConn, Shard, DD) ->
+    is_design_being_compacted(AdminConn, Shard, DD, 0).
 
--spec wait_for_compaction(kz_data:connection(), kz_term:ne_binary(), db_info_resp()) -> 'ok'.
-wait_for_compaction(_AdminConn, _Shard, {'error', 'db_not_found'}) ->
-    lager:debug("shard '~s' wasn't found on this connection: ~p", [_Shard, _AdminConn]);
-wait_for_compaction(AdminConn, Shard, {'error', 'timeout'}) ->
+-spec is_design_being_compacted(kz_data:connection(), kz_term:ne_binary(), kz_term:ne_binary(), 0..?IS_BEING_COMPACTED_MAX_RETRIES) ->
+          boolean().
+is_design_being_compacted(AdminConn, Shard, DD, Retries) when Retries < ?IS_BEING_COMPACTED_MAX_RETRIES ->
+    is_design_being_compacted(AdminConn, Shard, DD, Retries + 1, kz_couch_view:design_info(AdminConn, Shard, DD));
+is_design_being_compacted(_AdminConn, Shard, DD, Retries) ->
+    lager:debug("not design information found for ~p/~p after ~p retries", [Shard, DD, Retries]),
+    'false'.
+
+-spec is_design_being_compacted(kz_data:connection(), kz_term:ne_binary(), kz_term:ne_binary(), 0..?IS_BEING_COMPACTED_MAX_RETRIES, design_info_resp()) -> boolean().
+is_design_being_compacted(AdminConn, Shard, DD, Retries, {'error', {'conn_failed', {'error', 'timeout'}}}) ->
+    lager:warning("timed out, waiting then retrying"),
+    'ok' = timer:sleep(?SLEEP_BETWEEN_POLL),
+    is_design_being_compacted(AdminConn, Shard, DD, Retries);
+is_design_being_compacted(_AdminConn, Shard, DD, _Retries, {'error', 'not_found'}) ->
+    lager:debug("compacting shard design docs not found for ~p/~p", [Shard, DD]),
+    'false';
+is_design_being_compacted(_AdminConn, Shard, _DD, _Retries, {'error', _E}) ->
+    lager:warning("failed design status for '~s/~s': ~p", [Shard, _DD, _E]),
+    'false';
+is_design_being_compacted(_AdminConn, _Shard, _DD, _Retries, {'ok', DesignInfo}) ->
+    kz_json:is_true(<<"compact_running">>, DesignInfo, 'false').
+
+%%------------------------------------------------------------------------------
+%% @doc If shard is being compacted, wait until it finishes the compaction process.
+%% @end
+%%------------------------------------------------------------------------------
+-spec wait_for_shard_compaction(kz_data:connection(), kz_term:ne_binary()) ->
+          'ok'.
+wait_for_shard_compaction(AdminConn, Shard) ->
+    wait_for_shard_compaction(AdminConn, Shard, 0).
+
+-spec wait_for_shard_compaction(kz_data:connection(), kz_term:ne_binary(), 0..?WAIT_FOR_COMPACTION_MAX_RETRIES) ->
+          'ok'.
+wait_for_shard_compaction(AdminConn, Shard, Retries) when Retries < ?WAIT_FOR_COMPACTION_MAX_RETRIES ->
+    wait_for_shard_compaction(AdminConn, Shard, Retries + 1, is_shard_being_compacted(AdminConn, Shard));
+wait_for_shard_compaction(_AdminConn, Shard, Retries) ->
+    Time = kz_time:pretty_print_elapsed_s(kz_time:milliseconds_to_seconds(Retries * ?SLEEP_BETWEEN_POLL)),
+    lager:debug("compaction for shard ~p have not finished after ~~p, moving on", [Shard, Time]).
+
+-spec wait_for_shard_compaction(kz_data:connection(), kz_term:ne_binary(), 0..?WAIT_FOR_COMPACTION_MAX_RETRIES, boolean()) ->
+          'ok'.
+wait_for_shard_compaction(_AdminConn, Shard, _Retries, 'false') ->
+    lager:debug("shard ~p compaction has ended", [Shard]);
+wait_for_shard_compaction(AdminConn, Shard, Retries, 'true') ->
+    lager:debug("shard still being compacted, waiting ~pms to re-check", [?SLEEP_BETWEEN_POLL]),
+    'ok' = timer:sleep(?SLEEP_BETWEEN_POLL),
+    wait_for_shard_compaction(AdminConn, Shard, Retries).
+
+%%------------------------------------------------------------------------------
+%% @doc Is shard currently being compacted?
+%% @end
+%%------------------------------------------------------------------------------
+-spec is_shard_being_compacted(kz_data:connection(), kz_term:ne_binary()) ->
+          boolean().
+is_shard_being_compacted(AdminConn, Shard) ->
+    is_shard_being_compacted(AdminConn, Shard, 0).
+
+-spec is_shard_being_compacted(kz_data:connection(), kz_term:ne_binary(), 0..?IS_BEING_COMPACTED_MAX_RETRIES) ->
+          boolean().
+is_shard_being_compacted(AdminConn, Shard, Retries) when Retries < ?IS_BEING_COMPACTED_MAX_RETRIES ->
+    is_shard_being_compacted(AdminConn, Shard, Retries + 1, kz_couch_db:db_info(AdminConn, Shard));
+is_shard_being_compacted(_AdminConn, Shard, Retries) ->
+    lager:debug("not shard information found for ~p after ~p retries", [Shard, Retries]),
+    'false'.
+
+-spec is_shard_being_compacted(kz_data:connection(), kz_term:ne_binary(), 0..?IS_BEING_COMPACTED_MAX_RETRIES, db_info_resp()) ->
+          boolean().
+is_shard_being_compacted(_AdminConn, _Shard, _Retries, {'error', 'db_not_found'}) ->
+    lager:debug("shard '~s' wasn't found on this connection: ~p", [_Shard, _AdminConn]),
+    'false';
+is_shard_being_compacted(AdminConn, Shard, Retries, {'error', 'timeout'}) ->
     lager:warning("timed out querying db status; that seems irregular!"),
     'ok' = timer:sleep(?SLEEP_BETWEEN_POLL * 2),
-    wait_for_compaction(AdminConn, Shard);
-wait_for_compaction(_AdminConn, _Shard, {'error', _E}) ->
-    lager:debug("failed to query shard ~s status: ~p", [_Shard, kz_couch_util:format_error(_E)]);
-wait_for_compaction(AdminConn, Shard, {'ok', ShardData}) ->
-    case kz_json:is_true(<<"compact_running">>, ShardData, 'false') of
-        'false' -> lager:debug("compaction has ended");
-        'true' ->
-            'ok' = timer:sleep(?SLEEP_BETWEEN_POLL),
-            wait_for_compaction(AdminConn, Shard)
-    end.
+    is_shard_being_compacted(AdminConn, Shard, Retries);
+is_shard_being_compacted(_AdminConn, _Shard, _Retries, {'error', _E}) ->
+    lager:debug("failed to query shard ~s status: ~p", [_Shard, kz_couch_util:format_error(_E)]),
+    'false';
+is_shard_being_compacted(_AdminConn, _Shard, _Retries, {'ok', ShardData}) ->
+    kz_json:is_true(<<"compact_running">>, ShardData, 'false').
 
 -spec should_compact(compactor()) -> boolean().
 should_compact(Compactor) ->
