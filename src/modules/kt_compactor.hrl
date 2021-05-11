@@ -4,13 +4,16 @@
 
 -define(HEUR_NONE, 'none').
 -define(HEUR_RATIO, 'ratio').
+%% Maximum number of tries to check if shard or design document is being compacted before giving up on it.
+-define(IS_BEING_COMPACTED_MAX_RETRIES, 3).
+%% Maximum number of tries to check if a shard or design document are still being compacted before moving to the next one.
+-define(WAIT_FOR_COMPACTION_MAX_RETRIES, 500). %% ~25 minutes if using default SLEEP_BETWEEN_POLL value. 500 * 3s = 1500s.
 
 -type heuristic() :: ?HEUR_NONE | ?HEUR_RATIO.
 
 %% Ratio of legacy data, including metadata, to current data in the database file size.
-%% The percentage is expressed as an integer percentage. Taken
-%% from http://docs.couchdb.org/en/stable/config/compaction.html#compactions
-%% `db_framentation' section.
+%% The percentage is expressed as an integer percentage. Taken from
+%% https://docs.couchdb.org/en/2.3.1/config/compaction.html `db_fragmentation' section.
 -define(MIN_RATIO
        ,kapps_config:get_float(<<"kazoo_couch">>, <<"min_ratio">>, 25)
        ).

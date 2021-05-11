@@ -1,5 +1,5 @@
 %%%-----------------------------------------------------------------------------
-%%% @copyright (C) 2016-2020, 2600Hz
+%%% @copyright (C) 2016-2021, 2600Hz
 %%% @doc
 %%% @author Pierre Fenoll
 %%%
@@ -148,22 +148,16 @@ register_views() ->
     kz_datamgr:register_views_from_folder(?APP).
 
 -spec compaction(kz_term:ne_binary()) -> 'no_return'.
+compaction(<<"enable_autocompaction">>) ->
+    kapps_config:set_boolean(<<"kazoo_couch">>, <<"compact_automatically">>, 'true');
+compaction(<<"disable_autocompaction">>) ->
+    kapps_config:set_boolean(<<"kazoo_couch">>, <<"compact_automatically">>, 'false');
 compaction(<<"status">>) ->
     case kt_compaction_reporter:status() of
-        [] ->
-            io:format("not running~n");
-        StatsRows ->
-            lists:foreach(
-              fun(Stats) ->
-                      lists:foreach(fun({K, V}) -> io:format("~s: ~s~n", [K, V]) end
-                                   ,Stats
-                                   ),
-                      io:format("~n")
-              end,
-              StatsRows)
+        [] -> io:format("not running~n");
+        Jobs -> lists:foreach(fun print_compaction_job_status/1, Jobs)
     end,
     'no_return';
-
 compaction(<<"history">>) ->
     maybe_print_compaction_history(kt_compaction_reporter:history()).
 
@@ -173,17 +167,32 @@ compaction(<<"history">>, <<Year:4/binary, Month:2/binary>>) ->
     maybe_print_compaction_history(compaction_history(Year, Month));
 compaction(<<"history">>, <<Year:4/binary, Month:1/binary>>) ->
     maybe_print_compaction_history(compaction_history(Year, Month));
-
 compaction(<<"history">>, <<JobId/binary>>) ->
     job_info(JobId);
-
 compaction(<<"compact_db">>, <<Db/binary>>) ->
     kt_compactor:compact_db(Db);
-
 compaction(<<"compact_node">>, <<Node/binary>>) ->
     kt_compactor:compact_node(Node).
 
 %%% Internals
+
+-spec print_compaction_job_status([{kz_term:ne_binary(), kz_term:ne_binary()}]) -> 'ok'.
+print_compaction_job_status([]) ->
+    io:format("~n");
+print_compaction_job_status([{<<"recovered_disk">>=K, V} | Stats]) ->
+    io:format("~s: ~s~n", [K, kz_term:pretty_print_bytes(kz_term:to_integer(V))]),
+    print_compaction_job_status(Stats);
+print_compaction_job_status([{<<"started">>=K, V} | Stats]) ->
+    StartedInt = kz_term:to_integer(V),
+    io:format("~s: ~s~n", [K, kz_time:pretty_print_datetime(StartedInt)]),
+    io:format("elapsed: ~s~n", [kz_time:pretty_print_elapsed_s(kz_time:elapsed_s(StartedInt))]),
+    print_compaction_job_status(Stats);
+print_compaction_job_status([{<<"last_update">>=K, V} | Stats]) ->
+    io:format("~s: ~s~n", [K, kz_time:pretty_print_elapsed_s(kz_time:elapsed_s(kz_term:to_integer(V)))]),
+    print_compaction_job_status(Stats);
+print_compaction_job_status([{K, V} | Stats]) ->
+    io:format("~s: ~s~n", [K, V]),
+    print_compaction_job_status(Stats).
 
 -spec print_json(kz_json:json_term()) -> 'no_return'.
 print_json(Data) ->
@@ -267,10 +276,11 @@ maybe_print_compaction_history({'ok', JObjs}) ->
              ,"started_at"
              ,"finished_at"
              ,"exec_time"
+             ,"host"
              ],
-    HLine = "+------------------------------+--------+-----------+---------+------------+---------------------+---------------------+--------------+",
+    HLine = "+----------------------------+------+---------+-------+----------+-------------------+-------------------+------------+-----------+",
     %% Format string for printing header and values of the table including "columns".
-    FStr = "| ~.28s | ~6.6s | ~9.9s | ~7.7s | ~10.10s | ~.19s | ~.19s | ~12.12s |~n",
+    FStr = "|~28.28s|~6.6s|~9.9s|~7.7s|~10.10s|~19.19s|~19.19s|~12.12s|~11.11s|~n",
     %% Print top line of table, then prints the header and then another line below.
     io:format("~s~n" ++ FStr ++ "~s~n", [HLine] ++ Header ++ [HLine]),
     lists:foreach(fun(Obj) -> print_compaction_history_row(Obj, FStr) end, JObjs),
@@ -288,6 +298,7 @@ print_compaction_history_row(JObj, FStr) ->
     EndInt = Int([<<"worker">>, <<"finished">>]),
     DiskStartInt = Int([<<"storage">>, <<"disk">>, <<"start">>]),
     DiskEndInt = Int([<<"storage">>, <<"disk">>, <<"end">>]),
+    [_VMName, Host] = binary:split(kz_json:get_value([<<"worker">>, <<"node">>], Doc), <<"@">>),
     Row = [kz_doc:id(Doc)
           ,Str([<<"databases">>, <<"found">>])
           ,Str([<<"databases">>, <<"compacted">>])
@@ -296,6 +307,7 @@ print_compaction_history_row(JObj, FStr) ->
           ,kz_term:to_list(kz_time:pretty_print_datetime(StartInt))
           ,kz_term:to_list(kz_time:pretty_print_datetime(EndInt))
           ,kz_term:to_list(kz_time:pretty_print_elapsed_s(EndInt - StartInt))
+          ,Host
           ],
     io:format(FStr, Row).
 
