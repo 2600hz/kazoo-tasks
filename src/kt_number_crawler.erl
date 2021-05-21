@@ -1,5 +1,5 @@
 %%%-----------------------------------------------------------------------------
-%%% @copyright (C) 2013-2020, 2600Hz
+%%% @copyright (C) 2013-2021, 2600Hz
 %%% @doc
 %%% @author Peter Defebvre
 %%%
@@ -177,8 +177,8 @@ maybe_edit(T0=#{'todo' := PNs}) ->
     _ = knm_phone_number:delete(knm_pipe:set_todo(T0, ToRemove)),
     knm_pipe:set_succeeded(T0, ToSave).
 
--spec maybe_edit_fold(knm_phone_number:record(), {knm_phone_number:records(), knm_phone_number:records()}) ->
-          {knm_phone_number:records(), knm_phone_number:records()}.
+-spec maybe_edit_fold(knm_phone_number:pn_record(), {knm_phone_number:pn_records(), knm_phone_number:pn_records()}) ->
+          {knm_phone_number:pn_records(), knm_phone_number:pn_records()}.
 maybe_edit_fold(PN, {ToRemove, ToSave}=To) ->
     case knm_phone_number:state(PN) of
         ?NUMBER_STATE_DELETED ->
@@ -190,16 +190,16 @@ maybe_edit_fold(PN, {ToRemove, ToSave}=To) ->
         _ -> To
     end.
 
--spec maybe_remove(knm_phone_number:record(), knm_phone_number:records(), integer()) ->
-          knm_phone_number:records().
+-spec maybe_remove(knm_phone_number:pn_record(), knm_phone_number:pn_records(), integer()) ->
+          knm_phone_number:pn_records().
 maybe_remove(PN, ToRemove, Expiry) ->
     case is_old_enough(PN, Expiry) of
         'false' -> ToRemove;
         'true' -> [PN|ToRemove]
     end.
 
--spec maybe_transition_aging(knm_phone_number:record(), knm_phone_number:records(), integer()) ->
-          knm_phone_number:records().
+-spec maybe_transition_aging(knm_phone_number:pn_record(), knm_phone_number:pn_records(), integer()) ->
+          knm_phone_number:pn_records().
 maybe_transition_aging(PN, ToSave, Expiry) ->
     case is_old_enough(PN, Expiry) of
         'false' -> ToSave;
@@ -213,7 +213,7 @@ maybe_transition_aging(PN, ToSave, Expiry) ->
             [NewPN|ToSave]
     end.
 
--spec is_old_enough(knm_phone_number:record(), pos_integer()) -> boolean().
+-spec is_old_enough(knm_phone_number:pn_record(), pos_integer()) -> boolean().
 is_old_enough(PN, Expiry) ->
     knm_phone_number:modified(PN) + Expiry * ?SECONDS_IN_DAY
         < kz_time:now_s().

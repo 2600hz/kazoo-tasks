@@ -1,5 +1,5 @@
 %%%-----------------------------------------------------------------------------
-%%% @copyright (C) 2016-2020, 2600Hz
+%%% @copyright (C) 2016-2021, 2600Hz
 %%% @doc
 %%% @author Pierre Fenoll
 %%%
@@ -411,7 +411,7 @@ list_bad_rows(_E164, _R, Rows) ->
     lager:error("wild number ~s appeared: ~p", [_E164, _R]),
     Rows.
 
--spec list_number(knm_phone_number:record()) -> map().
+-spec list_number(knm_phone_number:pn_record()) -> map().
 list_number(PN) ->
     InboundCNAM = knm_phone_number:feature(PN, ?FEATURE_CNAM_INBOUND),
     OutboundCNAM = knm_phone_number:feature(PN, ?FEATURE_CNAM_OUTBOUND),
@@ -773,7 +773,7 @@ format_error([{_, KNMError} | _], Args) ->
              end,
     format_result(Args, kz_term:to_binary(Reason)).
 
--spec format_result(kz_tasks:args(), kz_term:ne_binary() | knm_phone_number:record()) -> kz_csv:mapped_row().
+-spec format_result(kz_tasks:args(), kz_term:ne_binary() | knm_phone_number:pn_record()) -> kz_csv:mapped_row().
 format_result(Args, Reason=?NE_BINARY) ->
     Args#{?OUTPUT_CSV_HEADER_ERROR => Reason};
 format_result(_, PN) ->

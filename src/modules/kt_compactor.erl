@@ -75,7 +75,7 @@
 init() ->
     init(kazoo_couch:server_version()).
 
--spec init(kazoo_couch:server_version()) -> 'ok'.
+-spec init(kazoo_couch:couch_version()) -> 'ok'.
 init('couchdb_3') ->
     lager:debug("couchdb 3 does not need compactor, not binding");
 init(_) ->
