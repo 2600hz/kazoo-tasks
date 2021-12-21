@@ -279,7 +279,7 @@ handle_result(AccountId, Args, {'error', Reason}, Action) ->
     format_error_result_to_csv_row(AccountId, Args, Reason, Action).
 
 %%------------------------------------------------------------------------------
-%% @doc Format a successfull (ok) result into a csv row response.
+%% @doc Format a successful (ok) result into a csv row response.
 %% @end
 %%------------------------------------------------------------------------------
 -spec format_ok_result_to_csv_row(kz_term:ne_binary(), kzd_users:doc(), atom()) ->
