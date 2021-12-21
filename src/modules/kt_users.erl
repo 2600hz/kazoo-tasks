@@ -92,7 +92,7 @@ output_header_by_action(<<"delete">>) ->
 %% Mandatory fields are pulled from doc schema.
 %% @end
 %%------------------------------------------------------------------------------
--spec mandatory_import_fields() -> kz_type:proplist().
+-spec mandatory_import_fields() -> kz_term:proplist().
 mandatory_import_fields() ->
     {ok, UserSchema} = kz_json_schema:load(<<"users">>),
     kz_json:get_list_value(<<"required">>, UserSchema).
@@ -104,7 +104,7 @@ mandatory_import_fields() ->
 %% from the one defined in the url (this valve will overwirte the url value).
 %% @end
 %%------------------------------------------------------------------------------
--spec optional_import_fields() -> kz_type:proplist().
+-spec optional_import_fields() -> kz_term:proplist().
 optional_import_fields() ->
     AllKeys = maps:keys(kzd_users:get_setters()),
     (AllKeys ++ [<<"account_id">>]) -- mandatory_import_fields().
@@ -113,7 +113,7 @@ optional_import_fields() ->
 %% @doc The mandatory fields required for delete action.
 %% @end
 %%------------------------------------------------------------------------------
--spec mandatory_delete_fields() -> kz_type:proplist().
+-spec mandatory_delete_fields() -> kz_term:ne_binaries().
 mandatory_delete_fields() ->
     [<<"user_id">>].
 
@@ -123,7 +123,7 @@ mandatory_delete_fields() ->
 %% from the one defined in the url (this valve will overwirte the url value).
 %% @end
 %%------------------------------------------------------------------------------
--spec optional_delete_fields() -> kz_type:proplist().
+-spec optional_delete_fields() -> kz_term:ne_binaries().
 optional_delete_fields() ->
     [<<"account_id">>].
 
@@ -268,7 +268,10 @@ delete(#{account_id := URLAccountId
 %% @doc Process response and format the doc or errors into the CSV row result.
 %% @end
 %%------------------------------------------------------------------------------
--spec handle_result(kz_term:ne_binary(), kz_tasks:args(), {'ok', kzd_users:doc()} | {'error', kz_type:ne_binary()}, atom()) ->
+-type user_result() :: {'ok', kzd_users:doc()} |
+                       {'error', kz_term:ne_binary()}.
+
+-spec handle_result(kz_term:ne_binary(), kz_tasks:args(), user_result(), atom()) ->
           kz_tasks:return().
 handle_result(AccountId, _Args, {'ok', Doc}, Action) ->
     format_ok_result_to_csv_row(AccountId, Doc, Action);
@@ -279,7 +282,8 @@ handle_result(AccountId, Args, {'error', Reason}, Action) ->
 %% @doc Format a successfull (ok) result into a csv row response.
 %% @end
 %%------------------------------------------------------------------------------
--spec format_ok_result_to_csv_row(kz_term:ne_binary(), kzd_users:doc(), atom()) -> kz_csv:mapped_row().
+-spec format_ok_result_to_csv_row(kz_term:ne_binary(), kzd_users:doc(), atom()) ->
+          kz_csv:mapped_row().
 format_ok_result_to_csv_row(AccountId, Doc, Action) ->
     Map = generate_return_values_from_doc(AccountId, Doc, Action),
     Map#{?OUTPUT_CSV_HEADER_ERROR => 'undefined'}.
@@ -298,7 +302,8 @@ format_error_result_to_csv_row(AccountId, Args, Error, Action) ->
 %% (Error case)
 %% @end
 %%------------------------------------------------------------------------------
--spec generate_return_values_from_args(kz_term:ne_binary(), kz_tasks:args(), atom()) -> kz_csv:mapped_row().
+-spec generate_return_values_from_args(kz_term:ne_binary(), kz_tasks:args(), atom()) ->
+          kz_csv:mapped_row().
 generate_return_values_from_args(AccountId, Args ,'import') ->
     #{<<"id">> => 'undefined'
      ,<<"username">> => maps:get(<<"username">>, Args, 'undefined')
@@ -315,7 +320,8 @@ generate_return_values_from_args(AccountId, Args ,'delete') ->
 %% @doc Generate the csv return row values from the user doc.
 %% @end
 %%------------------------------------------------------------------------------
--spec generate_return_values_from_doc(kz_term:ne_binary(), kzd_users:doc(), atom()) -> kz_csv:mapped_row().
+-spec generate_return_values_from_doc(kz_term:ne_binary(), kzd_users:doc(), atom()) ->
+          kz_csv:mapped_row().
 generate_return_values_from_doc(AccountId, Doc, 'import') ->
     #{<<"id">> => kz_doc:id(Doc)
      ,<<"username">> => kzd_users:username(Doc)
@@ -349,7 +355,7 @@ cleanup(?NE_BINARY, _) -> 'ok'.
 %% @end
 %%------------------------------------------------------------------------------
 -spec is_authorized_account(kz_term:ne_binary(), kz_term:ne_binary()) -> boolean().
-is_authorized_account(Account1, Account1) -> true;
+is_authorized_account(Account1, Account1) -> 'true';
 is_authorized_account(Account1, Account2) -> is_parent_account(Account1, Account2).
 
 %%------------------------------------------------------------------------------
@@ -357,7 +363,7 @@ is_authorized_account(Account1, Account2) -> is_parent_account(Account1, Account
 %% @end
 %%------------------------------------------------------------------------------
 -spec is_parent_account(kz_term:ne_binary(), kz_term:ne_binary()) -> boolean().
-is_parent_account(<<_/binary>> = Account1, Account2) ->
+is_parent_account(<<Account1/binary>>, Account2) ->
     {'ok', JObj} = kzd_accounts:fetch(Account2),
     lists:member(Account1, kzd_accounts:tree(JObj)).
 
@@ -377,8 +383,7 @@ maybe_override_account_id(_URLAccountId, #{<<"account_id">> := AccountIdOverride
 %% If validation passes then save the user.
 %% @end
 %%------------------------------------------------------------------------------
--spec generate_validate_and_save_new_user(kz_type:ne_binary(), kz_tasks:args()) ->
-          {'ok', kzd_users:doc()}  | {'error', kz_type:ne_binary()}.
+-spec generate_validate_and_save_new_user(kz_term:ne_binary(), kz_tasks:args()) -> user_result().
 generate_validate_and_save_new_user(AccountId, Args) ->
     UserDoc = kz_tasks_utils:generate_new_doc_with_kazoo_doc_setters('kzd_users', Args),
     case kzd_users:validate(AccountId, 'undefined', UserDoc) of
@@ -404,7 +409,7 @@ generate_validate_and_save_new_user(AccountId, Args) ->
 %% @doc Save user to kazoo.
 %% @end
 %%------------------------------------------------------------------------------
--spec save_user(kz_type:ne_binary(), kzd_users:doc()) -> {'ok', kzd_users:doc()}  | {'error', kz_type:ne_binary()}.
+-spec save_user(kz_term:ne_binary(), kzd_users:doc()) -> user_result().
 save_user(AccountId, UserDoc) ->
     AccountDb = kzs_util:format_account_db(AccountId),
     case kz_datamgr:save_doc(AccountDb, UserDoc) of
@@ -420,6 +425,6 @@ save_user(AccountId, UserDoc) ->
 %% @doc Delete a user from kazoo
 %% @end
 %%------------------------------------------------------------------------------
--spec delete_user(kz_type:ne_binary(), kz_tasks:args()) -> {'ok', kzd_users:doc()}  | {'error', kz_type:ne_binary()}.
+-spec delete_user(kz_term:ne_binary(), kz_tasks:args()) -> user_result().
 delete_user(AccountId ,#{<<"user_id">> := UserId}) ->
     kz_tasks_utils:delete_doc(AccountId, UserId, <<"user">>).

@@ -22,7 +22,9 @@
 %% Verify the doc type matches the DocType supplied
 %% @end
 %%------------------------------------------------------------------------------
--spec delete_doc(kz_type:ne_binary(), kz_type:ne_binary(), kz_type:ne_binary()) -> {'ok', kz_doc:object()}  | {'error', kz_type:ne_binary()}.
+-spec delete_doc(kz_term:ne_binary(), kz_term:ne_binary(), kz_term:ne_binary()) ->
+          {'ok', kz_json:object()} |
+          {'error', kz_term:ne_binary()}.
 delete_doc(AccountId, DocId, DocType) ->
     AccountDb = kzs_util:format_account_db(AccountId),
     case verify_doc_type(AccountDb, DocId, DocType) of
@@ -40,7 +42,9 @@ delete_doc(AccountId, DocId, DocType) ->
 %% @doc For a given Account Db and Doc id, verify its type matches DocType
 %% @end
 %%------------------------------------------------------------------------------
--spec verify_doc_type(kz_type:ne_binary(), kz_type:ne_binary(), kz_type:ne_binary()) -> boolean() | {'error', kz_type:ne_binary()}.
+-spec verify_doc_type(kz_term:ne_binary(), kz_term:ne_binary(), kz_term:ne_binary()) ->
+          boolean() |
+          {'error', kz_term:ne_binary()}.
 verify_doc_type(AccountDb, DocId, DocType) ->
     case kz_datamgr:open_doc(AccountDb, DocId) of
         {'error', Cause} ->
@@ -53,7 +57,9 @@ verify_doc_type(AccountDb, DocId, DocType) ->
 %% @doc Delete a doc from kazoo
 %% @end
 %%------------------------------------------------------------------------------
--spec do_delete_doc(kz_type:ne_binary(), kz_type:ne_binary()) -> {'ok', kz_doc:object()}  | {'error', kz_type:ne_binary()}.
+-spec do_delete_doc(kz_term:ne_binary(), kz_term:ne_binary()) ->
+          {'ok', kz_json:object()} |
+          {'error', kz_term:ne_binary()}.
 do_delete_doc(AccountDb, DocId) ->
     case kz_datamgr:del_doc(AccountDb, DocId) of
         {'error', Cause} ->
@@ -94,7 +100,7 @@ kazoo_doc_validation_error_to_binary({Path, ErrorCode, JObj}) ->
 %% where the `Args' value is not `undefined'.
 %% @end
 %%------------------------------------------------------------------------------
--spec generate_new_doc_with_kazoo_doc_setters(erlang:module(), kz_tasks:args()) -> kz_doc:doc().
+-spec generate_new_doc_with_kazoo_doc_setters(module(), kz_tasks:args()) -> kz_doc:doc().
 generate_new_doc_with_kazoo_doc_setters(KazooDocModule, Args) ->
     KeyToSetFunMap = erlang:apply(KazooDocModule, 'get_setters', []),
     DefaultDoc = erlang:apply(KazooDocModule, 'new', []),
