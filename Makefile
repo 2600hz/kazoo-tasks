@@ -8,6 +8,8 @@ compile: headers
 
 compile-test: headers
 
+compile-test-direct: headers
+
 headers: src/modules/kt_rates.hrl src/task_modules.hrl
 
 src/modules/kt_rates.hrl:
