@@ -1,5 +1,5 @@
 %%%-----------------------------------------------------------------------------
-%%% @copyright (C) 2013-2020, 2600Hz
+%%% @copyright (C) 2013-2022, 2600Hz
 %%% @doc Handle creating MODBs ahead of time
 %%%
 %%% This Source Code Form is subject to the terms of the Mozilla Public
@@ -64,7 +64,7 @@ log_started(Pid) ->
 create_modbs() ->
     {CurrentYear, CurrentMonth, _D} = erlang:date(),
     _P = kz_process:spawn(fun create_modbs/2, [CurrentYear, CurrentMonth]),
-    io:format("creating modbs in ~p~n", [_P]).
+    lager:info("creating modbs in ~p~n", [_P]).
 
 -spec create_modbs(kz_time:year(), kz_time:month()) -> 'ok'.
 create_modbs(CurrentYear, CurrentMonth) ->

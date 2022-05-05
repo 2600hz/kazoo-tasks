@@ -1,5 +1,5 @@
 %%%-----------------------------------------------------------------------------
-%%% @copyright (C) 2016-2021, 2600Hz
+%%% @copyright (C) 2016-2022, 2600Hz
 %%% @doc
 %%% @author Pierre Fenoll
 %%%
@@ -811,7 +811,7 @@ view_for_list_assigned(StartKey=[AccountId,_]) ->
           {'ok' | 'error' | [kz_csv:row()], [startkey_or_numberdb()]}.
 dump_next(ViewFun, [Next|Rest]) ->
     {NumberDb, MoreViewOptions} = ViewFun(Next),
-    ViewOptions = [{limit, ?DB_DUMP_BULK_SIZE} | MoreViewOptions],
+    ViewOptions = [{'limit', ?DB_DUMP_BULK_SIZE} | MoreViewOptions],
     case kz_datamgr:get_result_keys(NumberDb, <<"numbers/status">>, ViewOptions) of
         {'ok', []} -> {'ok', Rest};
         {'error', _R} ->

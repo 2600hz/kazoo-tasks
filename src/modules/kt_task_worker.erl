@@ -1,5 +1,5 @@
 %%%-----------------------------------------------------------------------------
-%%% @copyright (C) 2016-2020, 2600Hz
+%%% @copyright (C) 2016-2022, 2600Hz
 %%% @doc Run tasks scheduled by kz_tasks.
 %%% @author Pierre Fenoll
 %%%
@@ -39,7 +39,7 @@
 %% @doc
 %% @end
 %%------------------------------------------------------------------------------
--spec start(kz_tasks:id(), kz_json:object(), kz_tasks:extra_args()) -> ok.
+-spec start(kz_tasks:id(), kz_json:object(), kz_tasks:extra_args()) -> 'ok'.
 start(TaskId, API, ExtraArgs) ->
     _ = kz_log:put_callid(TaskId),
     case init(TaskId, API, ExtraArgs) of
@@ -136,7 +136,7 @@ loop(IterValue, State=#state{api = API
 -spec pad_mapped_row(kz_json:object(), kz_csv:mapped_row()) -> kz_csv:mapped_row().
 pad_mapped_row(API, MappedRow) ->
     MissingFields = kz_tasks:possible_fields(API) -- maps:keys(MappedRow),
-    F = fun (Field, Row) -> Row#{Field => undefined} end,
+    F = fun (Field, Row) -> Row#{Field => 'undefined'} end,
     lists:foldl(F, MappedRow, MissingFields).
 
 -spec teardown(kz_json:object(), any(), state()) -> 'stop'.
@@ -178,7 +178,7 @@ new_state_after_writing(NewColumns, WrittenSucceeded, WrittenFailed
 
 -spec is_task_successful(kz_csv:mapped_row(), kz_tasks:iterator(), state()) ->
           {boolean(), kz_tasks:columns(), non_neg_integer(), kz_tasks:iterator()} |
-          stop.
+          'stop'.
 is_task_successful(MappedRow
                   ,IterValue
                   ,State=#state{api = API
@@ -282,7 +282,7 @@ write_row(TaskId, IOList) ->
 -spec columns(kz_csv:mapped_row()) -> kz_tasks:columns().
 columns(MappedRow) ->
     Found = [K || {K,V} <- maps:to_list(MappedRow),
-                  V =/= undefined
+                  V =/= 'undefined'
             ],
     sets:from_list(Found).
 
@@ -293,7 +293,9 @@ reason(?NE_BINARY=Reason) ->
     kz_csv:row_to_iolist([Reason]);
 reason(_) -> <<>>.
 
--spec write_output_csv_header(kz_tasks:id(), kz_tasks:output_header()) -> 'ok' | {'error', file:posix()}.
+-spec write_output_csv_header(kz_tasks:id(), kz_tasks:output_header()) ->
+          'ok' |
+          {'error', file:posix()}.
 write_output_csv_header(TaskId, {'replace', Header}) ->
     write_output_csv_header(TaskId, Header);
 write_output_csv_header(TaskId, Header) ->

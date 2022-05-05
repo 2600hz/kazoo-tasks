@@ -1,5 +1,5 @@
 %%%-----------------------------------------------------------------------------
-%%% @copyright (C) 2013-2020, 2600Hz
+%%% @copyright (C) 2013-2022, 2600Hz
 %%% @doc
 %%% @author Pierre Fenoll
 %%%
@@ -13,18 +13,16 @@
 
 %% behaviour: tasks_provider
 
--export([init/0
-        ]).
+-export([init/0]).
 
 %% Triggerables
--export([clean_expired/0, clean_expired/1
-        ]).
+-export([clean_expired/0, clean_expired/1]).
 
 -include("tasks.hrl").
 
--define(LOOP_TIMEOUT,
-        kapps_config:get_integer(<<"crossbar.auth">>, <<"token_auth_expiry_s">>, ?SECONDS_IN_HOUR)).
-
+-define(LOOP_TIMEOUT
+       ,kapps_config:get_integer(<<"crossbar.auth">>, <<"token_auth_expiry_s">>, ?SECONDS_IN_HOUR)
+       ).
 
 %%%=============================================================================
 %%% API
@@ -36,7 +34,7 @@
 %%------------------------------------------------------------------------------
 -spec init() -> 'ok'.
 init() ->
-    _ = tasks_bindings:bind(?TRIGGER_HOURLY, ?MODULE, clean_expired).
+    _ = tasks_bindings:bind(?TRIGGER_HOURLY, ?MODULE, 'clean_expired').
 
 %%% Triggerables
 

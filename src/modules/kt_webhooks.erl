@@ -1,5 +1,5 @@
 %%%-----------------------------------------------------------------------------
-%%% @copyright (C) 2013-2020, 2600Hz
+%%% @copyright (C) 2013-2022, 2600Hz
 %%% @doc
 %%% @author Pierre Fenoll
 %%%
@@ -13,15 +13,12 @@
 
 %% behaviour: tasks_provider
 
--export([init/0
-        ]).
+-export([init/0]).
 
 %% Triggerables
--export([cleanup/1
-        ]).
+-export([cleanup/1]).
 
 -include("tasks.hrl").
-
 
 %%%=============================================================================
 %%% API
@@ -33,7 +30,7 @@
 %%------------------------------------------------------------------------------
 -spec init() -> 'ok'.
 init() ->
-    _ = tasks_bindings:bind(?TRIGGER_SYSTEM, ?MODULE, cleanup).
+    _ = tasks_bindings:bind(?TRIGGER_SYSTEM, ?MODULE, 'cleanup').
 
 %%% Triggerables
 

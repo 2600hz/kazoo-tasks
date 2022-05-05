@@ -1,5 +1,5 @@
 %%%-----------------------------------------------------------------------------
-%%% @copyright (C) 2016-2020, 2600Hz
+%%% @copyright (C) 2016-2022, 2600Hz
 %%% @doc
 %%% @author Sergey Korobkov
 %%%
@@ -19,8 +19,7 @@
         ]).
 
 %% Verifiers
--export([account_id/1
-        ]).
+-export([account_id/1]).
 
 %% Appliers
 -export([import/3
@@ -50,7 +49,7 @@
 %% @doc
 %% @end
 %%------------------------------------------------------------------------------
--spec init() -> ok.
+-spec init() -> 'ok'.
 init() ->
     _ = tasks_bindings:bind(<<"tasks.help">>, ?MODULE, 'help'),
     _ = tasks_bindings:bind(<<"tasks."?CATEGORY".account_id">>, ?MODULE, 'account_id'),
@@ -210,7 +209,7 @@ do_delete(Db, DelKeys) ->
                  ).
 
 do_delete_fold(Db, Keys, AccIDs) ->
-    Options = [{keys, Keys}, include_docs],
+    Options = [{'keys', Keys}, 'include_docs'],
     View = <<"resource_selectors/resource_name_selector_listing">>,
     case kz_datamgr:get_results(Db, View, Options) of
         {'ok', Result} ->
@@ -232,7 +231,7 @@ do_delete_fold(Db, Keys, AccIDs) ->
 get_selectors_db(#{account_id := AccountId
                   ,auth_account_id := AuthAccountId
                   }) ->
-    true =  kzd_accounts:is_in_account_hierarchy(AuthAccountId, AccountId, true),
+    'true' = kzd_accounts:is_in_account_hierarchy(AuthAccountId, AccountId, 'true'),
     kzs_util:format_resource_selectors_db(AccountId).
 
 -spec split_keys(kz_term:ne_binaries(), non_neg_integer()) -> [kz_term:ne_binaries()].
@@ -247,7 +246,7 @@ split_keys(Keys, Acc, BlockSize) ->
 
 -spec refresh_selectors_index(kz_term:ne_binary()) -> 'ok'.
 refresh_selectors_index(Db) ->
-    {'ok', _} = kz_datamgr:all_docs(Db, [{limit, 1}]),
+    {'ok', _} = kz_datamgr:all_docs(Db, [{'limit', 1}]),
     {'ok', _} = kz_datamgr:get_results(Db, <<"resource_selectors/resource_name_selector_listing">>, [{'limit', 1}]),
     'ok'.
 

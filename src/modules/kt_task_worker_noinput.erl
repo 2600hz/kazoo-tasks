@@ -1,5 +1,5 @@
 %%%-----------------------------------------------------------------------------
-%%% @copyright (C) 2016-2020, 2600Hz
+%%% @copyright (C) 2016-2022, 2600Hz
 %%% @doc Run tasks without CSV input file, scheduled by kz_tasks.
 %%% @author Pierre Fenoll
 %%%
@@ -36,7 +36,7 @@
 %% @doc
 %% @end
 %%------------------------------------------------------------------------------
--spec start(kz_tasks:id(), kz_json:object(), kz_tasks:extra_args()) -> ok.
+-spec start(kz_tasks:id(), kz_json:object(), kz_tasks:extra_args()) -> 'ok'.
 start(TaskId, API, ExtraArgs) ->
     _ = kz_log:put_callid(TaskId),
     case init(TaskId, API, ExtraArgs) of
@@ -56,7 +56,8 @@ start(TaskId, API, ExtraArgs) ->
 %% @doc
 %% @end
 %%------------------------------------------------------------------------------
--spec init(kz_tasks:id(), kz_json:object(), kz_tasks:extra_args()) -> {'ok', state()} |
+-spec init(kz_tasks:id(), kz_json:object(), kz_tasks:extra_args()) ->
+          {'ok', state()} |
           {'error', any()}.
 init(TaskId, API, ExtraArgs) ->
     Header = kz_tasks_scheduler:get_output_header(API),
@@ -73,7 +74,7 @@ init(TaskId, API, ExtraArgs) ->
             {'ok', State}
     end.
 
--spec loop(kz_tasks:iterator(), state()) -> any().
+-spec loop(kz_tasks:iterator(), state()) -> 'stop'.
 loop(IterValue, State=#state{task_id = TaskId}) ->
     case is_task_successful(IterValue, State) of
         'stop' ->
@@ -109,13 +110,15 @@ new_state_after_writing(NewColumns, WrittenSucceeded, WrittenFailed
                                     ,total_failed = TotalFailed
                                     ,columns = Columns
                                     }) ->
-    S = State#state{total_succeeded = NewTotalSucceeded = WrittenSucceeded + TotalSucceeded
-                   ,total_failed = NewTotalFailed = WrittenFailed + TotalFailed
-                   ,columns = sets:union(Columns, NewColumns)
-                   },
+    NewTotalSucceeded = WrittenSucceeded + TotalSucceeded,
+    NewTotalFailed = WrittenFailed + TotalFailed,
+
     _ = kz_tasks_scheduler:worker_maybe_send_update(Taskid, NewTotalSucceeded, NewTotalFailed),
     _ = kz_tasks_scheduler:worker_pause(),
-    S.
+    State#state{total_succeeded = NewTotalSucceeded
+               ,total_failed = NewTotalFailed
+               ,columns = sets:union(Columns, NewColumns)
+               }.
 
 store_file(#state{task_id = TaskId}, File) ->
     lager:info("storing ~s to task doc ~s", [File, TaskId]),

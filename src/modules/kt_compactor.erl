@@ -1,5 +1,5 @@
 %%%-----------------------------------------------------------------------------
-%%% @copyright (C) 2013-2021, 2600Hz
+%%% @copyright (C) 2013-2022, 2600Hz
 %%% @doc
 %%% @author Pierre Fenoll
 %%%
@@ -43,6 +43,8 @@
 
 -include("tasks.hrl").
 -include("kt_compactor.hrl").
+
+-elvis([{elvis_style, no_debug_call, disable}]).
 
 -define(CATEGORY, "compaction").
 -define(ACTIONS, [<<"compact_all">>
@@ -488,7 +490,7 @@ get_dbs_sizes(Dbs) ->
     {DbsAndSizes, _} = lists:foldl(F, {[], 0}, Dbs),
     DbsAndSizes.
 
--spec get_db_disk_and_data_fold(#server{}
+-spec get_db_disk_and_data_fold(kazoo_couch:server()
                                ,kz_term:ne_binary()
                                ,{dbs_and_sizes(), non_neg_integer()}
                                ,pos_integer()
@@ -502,7 +504,7 @@ get_db_disk_and_data_fold(Conn, UnencDb, {_, Counter} = State, ChunkSize)
 get_db_disk_and_data_fold(Conn, UnencDb, State, _ChunkSize) ->
     do_get_db_disk_and_data_fold(Conn, UnencDb, State).
 
--spec do_get_db_disk_and_data_fold(#server{}
+-spec do_get_db_disk_and_data_fold(kazoo_couch:server()
                                   ,kz_term:ne_binary()
                                   ,{dbs_and_sizes(), non_neg_integer()}
                                   ) -> {dbs_and_sizes(), pos_integer()}.
