@@ -44,12 +44,11 @@ init() ->
 %% Triggerables
 -spec maybe_test_for_initial_occurrences(kz_term:ne_binary(), kzd_accounts:doc()) -> 'ok'.
 maybe_test_for_initial_occurrences(AccountId, AccountJObj) ->
-    AccountDb = kz_doc:account_db(AccountJObj),
     case ?SHOULD_CRAWL_FOR_FIRST_OCCURRENCE of
         'false' -> 'ok';
         'true' ->
             maybe_test_for_registrations(AccountId, AccountJObj),
-            maybe_test_for_initial_call(AccountId, AccountDb, AccountJObj)
+            maybe_test_for_initial_call(AccountId, AccountJObj)
     end.
 
 %%%=============================================================================
@@ -107,21 +106,21 @@ notify_initial_registration(AccountJObj) ->
     kapps_notify_publisher:cast(Req, fun kapi_notifications:publish_first_occurrence/1).
 
 %% First Call
--spec maybe_test_for_initial_call(kz_term:ne_binary(), kz_term:ne_binary(), kzd_accounts:doc()) -> 'ok'.
-maybe_test_for_initial_call(AccountId, AccountDb, AccountJObj) ->
+-spec maybe_test_for_initial_call(kz_term:ne_binary(), kzd_accounts:doc()) -> 'ok'.
+maybe_test_for_initial_call(AccountId, AccountJObj) ->
     case kzd_accounts:sent_initial_call(AccountJObj) of
         'true' -> 'ok';
         'false' ->
             lager:debug("looking for initial call in account ~s", [AccountId]),
-            test_for_initial_call(AccountId, AccountDb)
+            test_for_initial_call(AccountId)
     end.
 
--spec test_for_initial_call(kz_term:ne_binary(), kz_term:ne_binary()) -> 'ok'.
-test_for_initial_call(AccountId, AccountDb) ->
+-spec test_for_initial_call(kz_term:ne_binary()) -> 'ok'.
+test_for_initial_call(AccountId) ->
     ViewOptions = [{'key', <<"cdr">>}
                   ,{'limit', 1}
                   ],
-    case kz_datamgr:get_results(AccountDb, <<"maintenance/listing_by_type">>, ViewOptions) of
+    case kz_datamgr:get_results(AccountId, <<"maintenance/listing_by_type">>, ViewOptions) of
         {'ok', [_|_]} ->
             lager:debug("found initial call in account ~s", [AccountId]),
             handle_initial_call(AccountId);
