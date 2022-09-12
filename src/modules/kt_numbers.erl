@@ -43,6 +43,7 @@
         ,release/3
         ,reserve/3
         ,delete/3
+        ,sync/2
         ]).
 
 -include_lib("kazoo_numbers/include/knm_phone_number.hrl").
@@ -85,6 +86,7 @@
                  ,<<"release">>
                  ,<<"reserve">>
                  ,<<"delete">>
+                 ,<<"sync">>
                  ]).
 
 %%%=============================================================================
@@ -114,6 +116,8 @@ output_header(<<"list_all">>) ->
 output_header(<<"dump">>) ->
     list_output_header();
 output_header(<<"dump_", _/binary>>) ->
+    list_output_header();
+output_header(<<"sync">>) ->
     list_output_header();
 output_header(?NE_BINARY) ->
     result_output_header().
@@ -338,6 +342,10 @@ action(<<"delete">>) ->
      ,<<"expected_content">> => <<"text/csv">>
      ,<<"mandatory">> => [<<"e164">>]
      ,<<"optional">> => []
+     };
+action(<<"sync">>) ->
+    #{<<"description">> => <<"Sync all numbers assigned to the account starting the task">>
+     ,<<"doc">> => list_doc()
      }.
 
 %%% Verifiers
@@ -742,6 +750,15 @@ delete(#{'auth_account_id' := AuthBy}
               ],
     %% FIXME: use knm_numbers, update list_number/1 to use kzd_phone_number
     handle_result(Args, knm_ops:delete(Num, Options)).
+
+-spec sync(kz_tasks:extra_args(), kz_tasks:iterator()) -> kz_tasks:iterator().
+sync(#{'account_id' := Account}, 'init') ->
+    _ = kazoo_numbers_maintenance:fix_account_db_numbers(Account),
+    ToList = [{Account, NumberDb} || NumberDb <- knm_util:get_all_number_dbs()],
+    {'ok', ToList};
+sync(_, []) -> 'stop';
+sync(_, Todo) ->
+    list_assigned_to(?KNM_DEFAULT_AUTH_BY, Todo).
 
 %%%=============================================================================
 %%% Internal functions
