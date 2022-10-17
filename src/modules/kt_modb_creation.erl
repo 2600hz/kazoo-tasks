@@ -1,5 +1,5 @@
 %%%-----------------------------------------------------------------------------
-%%% @copyright (C) 2013-2020, 2600Hz
+%%% @copyright (C) 2013-2022, 2600Hz
 %%% @doc Handle creating MODBs ahead of time
 %%%
 %%% This Source Code Form is subject to the terms of the Mozilla Public
@@ -17,7 +17,7 @@
 %% Triggerables
 -export([handle_req/0]).
 
--export([create_modbs/0, create_modbs/2]).
+-export([create_modbs/0, create_modbs/2, create_modbs/3]).
 
 -include("tasks.hrl").
 
@@ -68,16 +68,19 @@ create_modbs() ->
 
 -spec create_modbs(kz_time:year(), kz_time:month()) -> 'ok'.
 create_modbs(CurrentYear, CurrentMonth) ->
-    create_modbs(CurrentYear, CurrentMonth, kz_datamgr:get_results_count(?KZ_ACCOUNTS_DB, <<"accounts/listing_by_id">>, [])).
+    create_modbs(CurrentYear, CurrentMonth, []).
 
--spec create_modbs(kz_time:year(), kz_time:month(), {'ok', non_neg_integer()} | kz_datamgr:data_error()) -> 'ok'.
-create_modbs(_CurrentYear, _CurrentMonth, {'ok', 0}) -> 'ok';
-create_modbs(CurrentYear, CurrentMonth, {'ok', NumAccounts}) ->
+-spec create_modbs(kz_time:year(), kz_time:month(), kz_term:proplist()) -> 'ok'.
+create_modbs(CurrentYear, CurrentMonth, Options) ->
+    create_modbs(CurrentYear, CurrentMonth, Options, kz_datamgr:get_results_count(?KZ_ACCOUNTS_DB, <<"accounts/listing_by_id">>, [])).
+
+-spec create_modbs(kz_time:year(), kz_time:month(), kz_term:proplist(), {'ok', non_neg_integer()} | kz_datamgr:data_error()) -> 'ok'.
+create_modbs(_CurrentYear, _CurrentMonth, _Options, {'ok', 0}) -> 'ok';
+create_modbs(CurrentYear, CurrentMonth, Options, {'ok', NumAccounts}) ->
     NextOne = {NextYear, NextMonth, _} = kz_date:normalize({CurrentYear, CurrentMonth+1, 1}),
     NextCurrentMonthS = calendar:datetime_to_gregorian_seconds({NextOne, {0,0,0}}),
     NowS = kz_time:now_s(),
     SecondsLeft = NextCurrentMonthS - NowS,
-
     %% Conservatively create 1 MODB per time unit
     AccountsPerPass = kapps_config:get_integer(?MOD_CAT, <<"create_in_parallel">>, 1),
 
@@ -86,30 +89,34 @@ create_modbs(CurrentYear, CurrentMonth, {'ok', NumAccounts}) ->
     lager:info("creating ~p modbs (~p per pass), ~p seconds delay between passes"
               ,[NumAccounts, AccountsPerPass, SecondsPerPass]
               ),
-    create_modbs_metered(NextYear, NextMonth, AccountsPerPass, SecondsPerPass).
+    create_modbs_metered(NextYear, NextMonth, Options, AccountsPerPass, SecondsPerPass).
 
-create_modbs_metered(NextYear, NextMonth, AccountsPerPass, SecondsPerPass) ->
-    create_modbs_metered(NextYear, NextMonth, AccountsPerPass, SecondsPerPass
+create_modbs_metered(NextYear, NextMonth, Options, AccountsPerPass, SecondsPerPass) ->
+    create_modbs_metered(NextYear, NextMonth, Options, AccountsPerPass, SecondsPerPass
                         ,get_page(AccountsPerPass, 'undefined')
                         ).
 
-create_modbs_metered(NextYear, NextMonth, _AccountsPerPass, _SecondsPerPass, {'ok', Accounts, 'undefined'}) ->
-    _ = [create_modb(NextYear, NextMonth, Account) || Account <- Accounts],
+create_modbs_metered(NextYear, NextMonth, Options, _AccountsPerPass, _SecondsPerPass, {'ok', Accounts, 'undefined'}) ->
+    _ = [create_modb(NextYear, NextMonth, Account, Options) || Account <- Accounts],
     lager:info("finished creating account MODBs");
-create_modbs_metered(NextYear, NextMonth, AccountsPerPass, SecondsPerPass, {'ok', Accounts, NextPageKey}) ->
+create_modbs_metered(NextYear, NextMonth, Options, AccountsPerPass, SecondsPerPass, {'ok', Accounts, NextPageKey}) ->
     StartTime = kz_time:start_time(),
-    _ = [create_modb(NextYear, NextMonth, Account) || Account <- Accounts],
+    _ = [create_modb(NextYear, NextMonth, Account, Options) || Account <- Accounts],
     ElapsedS = kz_time:elapsed_s(StartTime),
     WaitS = SecondsPerPass - ElapsedS,
     lager:info("created ~p modb(s), waiting ~ps for next pass", [length(Accounts), WaitS]),
     timer:sleep(WaitS * ?MILLISECONDS_IN_SECOND),
-    create_modbs_metered(NextYear, NextMonth, AccountsPerPass, SecondsPerPass
+    create_modbs_metered(NextYear, NextMonth, Options, AccountsPerPass, SecondsPerPass
                         ,get_page(AccountsPerPass, NextPageKey)
                         );
-create_modbs_metered(_NextYear, _NextMonth, _AccountsPerPass, _SecondsPerPass, {'error', _E}) ->
+create_modbs_metered(_NextYear, _NextMonth, _Options, _AccountsPerPass, _SecondsPerPass, {'error', _E}) ->
     lager:info("error paginating accounts: ~p", [_E]).
 
--spec create_modb(kz_time:year(), kz_time:month(), kz_json:object()) -> pid().
+-spec create_modb(kz_time:year(), kz_time:month(), kz_json:object(), kz_term:proplist()) -> pid().
+create_modb(NextYear, NextMonth, AccountView, Options) ->
+    CreateFun = props:get_value('create_modb_fun', Options, fun create_modb/3),
+    CreateFun(NextYear, NextMonth, AccountView).
+
 create_modb(NextYear, NextMonth, AccountView) ->
     AccountId = kz_doc:id(AccountView),
     AccountMODB = kzs_util:format_account_id(AccountId, NextYear, NextMonth),
