@@ -1,5 +1,5 @@
 %%%-----------------------------------------------------------------------------
-%%% @copyright (C) 2016-2022, 2600Hz
+%%% @copyright (C) 2016-2023, 2600Hz
 %%% @doc Discover available tasks.
 %%% @author Pierre Fenoll
 %%%
