@@ -1,5 +1,5 @@
 %%%-----------------------------------------------------------------------------
-%%% @copyright (C) 2016-2020, 2600Hz
+%%% @copyright (C) 2016-2023, 2600Hz
 %%% @doc
 %%% This Source Code Form is subject to the terms of the Mozilla Public
 %%% License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -83,14 +83,14 @@ start_link() ->
 %% @doc
 %% @end
 %%------------------------------------------------------------------------------
--spec handle_start_req(kz_json:object(), kz_term:proplist()) -> ok.
+-spec handle_start_req(kz_json:object(), kz_term:proplist()) -> 'ok'.
 handle_start_req(JObj, _Props) ->
-    true = kapi_tasks:start_req_v(JObj),
+    'true' = kapi_tasks:start_req_v(JObj),
     Help =
         case kz_tasks_scheduler:start(kapi_tasks:task_id(JObj)) of
-            {ok, TaskJObj} -> TaskJObj;
-            {error, already_started} -> <<"already_started">>;
-            {error, not_found} -> <<"not_found">>
+            {'ok', TaskJObj} -> TaskJObj;
+            {'error', 'already_started'} -> <<"already_started">>;
+            {'error', 'not_found'} -> <<"not_found">>
         end,
     Resp = kz_json:from_list(
              [{<<"Reply">>, Help}
@@ -104,14 +104,14 @@ handle_start_req(JObj, _Props) ->
 %% @doc
 %% @end
 %%------------------------------------------------------------------------------
--spec handle_stop_req(kz_json:object(), kz_term:proplist()) -> ok.
+-spec handle_stop_req(kz_json:object(), kz_term:proplist()) -> 'ok'.
 handle_stop_req(JObj, _Props) ->
-    true = kapi_tasks:stop_req_v(JObj),
+    'true' = kapi_tasks:stop_req_v(JObj),
     Help =
         case kz_tasks_scheduler:stop(kapi_tasks:task_id(JObj)) of
-            {ok, TaskJObj} -> TaskJObj;
-            {error, not_running} -> <<"not_running">>;
-            {error, not_found} -> <<"not_found">>
+            {'ok', TaskJObj} -> TaskJObj;
+            {'error', 'not_running'} -> <<"not_running">>;
+            {'error', 'not_found'} -> <<"not_found">>
         end,
     Resp = kz_json:from_list(
              [{<<"Reply">>, Help}
@@ -124,14 +124,14 @@ handle_stop_req(JObj, _Props) ->
 %% @doc
 %% @end
 %%------------------------------------------------------------------------------
--spec handle_remove_req(kz_json:object(), kz_term:proplist()) -> ok.
+-spec handle_remove_req(kz_json:object(), kz_term:proplist()) -> 'ok'.
 handle_remove_req(JObj, _Props) ->
-    true = kapi_tasks:remove_req_v(JObj),
+    'true' = kapi_tasks:remove_req_v(JObj),
     Help =
         case kz_tasks_scheduler:remove(kapi_tasks:task_id(JObj)) of
-            {ok, TaskJObj} -> TaskJObj;
-            {error, task_running} -> <<"task_running">>;
-            {error, not_found} -> <<"not_found">>
+            {'ok', TaskJObj} -> TaskJObj;
+            {'error', 'task_running'} -> <<"task_running">>;
+            {'error', 'not_found'} -> <<"not_found">>
         end,
     Resp = kz_json:from_list(
              [{<<"Reply">>, Help}

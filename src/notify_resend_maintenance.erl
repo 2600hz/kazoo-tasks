@@ -1,5 +1,5 @@
 %%%-----------------------------------------------------------------------------
-%%% @copyright (C) 2010-2020, 2600Hz
+%%% @copyright (C) 2010-2023, 2600Hz
 %%% @doc
 %%% This Source Code Form is subject to the terms of the Mozilla Public
 %%% License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -20,6 +20,8 @@
         ]).
 
 -include("tasks.hrl").
+
+-elvis([{elvis_style, no_debug_call, disable}]).
 
 -define(FORMAT_STRING, "| ~-32s | ~-17s | ~-22s | ~-8s | ~-60s |~n").
 -define(JOB_TABLE_EDGE,
@@ -69,7 +71,7 @@ pending(ShowCount) ->
 %%------------------------------------------------------------------------------
 -spec pending(kz_term:ne_binary(), kz_term:ne_binary()) -> 'no_return'.
 pending(ShowCount, <<"true">>) ->
-    Total = get_total([{group_level, 0}]),
+    Total = get_total([{'group_level', 0}]),
     RunningIds = [kz_doc:id(J) || J <- kz_notify_resend:running()],
     RunningIdsLength = length(RunningIds),
     PendingLength = Total - RunningIdsLength,
@@ -79,19 +81,21 @@ pending(ShowCount, <<"true">>) ->
                   ,'include_docs'
                   ],
     _ = case kz_datamgr:get_results(?KZ_PENDING_NOTIFY_DB, ?PENDING_VIEW, ViewOptions) of
-            {ok, JObjs} -> [print_json(kz_json:get_value(<<"doc">>, J)) || J <- JObjs];
-            {error, _Reason} -> io:format("Failed getting pending notifications: ~p~n", [_Reason])
+            {'ok', JObjs} -> [print_json(kz_json:get_json_value(<<"doc">>, J)) || J <- JObjs];
+            {'error', _Reason} -> io:format("Failed getting pending notifications: ~p~n", [_Reason])
         end,
     io:format(" Total: ~b, Running ~b, Pending ~b~n", [Total, RunningIdsLength, PendingLength]),
     'no_return';
 pending(ShowCount, _Details) ->
-    Total = get_total([{group_level, 0}]),
+    Total = get_total([{'group_level', 0}]),
     RunningIds = [kz_doc:id(J) || J <- kz_notify_resend:running()],
     RunningIdsLength = length(RunningIds),
     PendingLength = Total - RunningIdsLength,
     print_job_table([{'limit', ShowCount}
                     ,{'reduce', 'false'}
-                    ], RunningIds),
+                    ]
+                   ,RunningIds
+                   ),
     io:format(" Total: ~b, Running ~b, Pending ~b~n", [Total, RunningIdsLength, PendingLength]),
     'no_return'.
 
@@ -102,15 +106,15 @@ pending(ShowCount, _Details) ->
 %%------------------------------------------------------------------------------
 -spec pending_by_type(kz_term:ne_binary()) -> 'no_return'.
 pending_by_type(Type) ->
-    Total = get_total([{startkey, [Type, 0]}
-                      ,{endkey, [Type, kz_time:now_s()]}
+    Total = get_total([{'startkey', [Type, 0]}
+                      ,{'endkey', [Type, kz_time:now_s()]}
                       ,{'group_level', 1}
                       ,'reduce'
                       ]),
-    ViewOptions = [{startkey, [Type, 0]}
-                  ,{endkey, [Type, kz_time:now_s()]}
-                  ,{reduce, false}
-                  ,{limit, 100}
+    ViewOptions = [{'startkey', [Type, 0]}
+                  ,{'endkey', [Type, kz_time:now_s()]}
+                  ,{'reduce', 'false'}
+                  ,{'limit', 100}
                   ],
     print_job_table(ViewOptions, [], ?PENDING_TYPE_VIEW),
     io:format(" Total: ~b~n", [Total]),
@@ -142,22 +146,25 @@ failed(ShowCount) ->
 %%------------------------------------------------------------------------------
 -spec failed(kz_term:ne_binary(), kz_term:ne_binary()) -> 'no_return'.
 failed(ShowCount, <<"true">>) ->
-    Total = get_total([{group_level, 0}], ?FAILED_TYPE_VIEW),
+    Total = get_total([{'group_level', 0}], ?FAILED_TYPE_VIEW),
     ViewOptions = [{'limit', ShowCount}
                   ,{'reduce', 'false'}
                   ,'include_docs'
                   ],
     _ = case kz_datamgr:get_results(?KZ_PENDING_NOTIFY_DB, ?FAILED_VIEW, ViewOptions) of
-            {ok, JObjs} -> [print_json(kz_json:get_value(<<"doc">>, J)) || J <- JObjs];
-            {error, _Reason} -> io:format("Failed getting failed notifications: ~p~n", [_Reason])
+            {'ok', JObjs} -> [print_json(kz_json:get_json_value(<<"doc">>, J)) || J <- JObjs];
+            {'error', _Reason} -> io:format("Failed getting failed notifications: ~p~n", [_Reason])
         end,
     io:format(" Total: ~b~n", [Total]),
     'no_return';
 failed(ShowCount, _Details) ->
-    Total = get_total([{group_level, 0}], ?FAILED_TYPE_VIEW),
+    Total = get_total([{'group_level', 0}], ?FAILED_TYPE_VIEW),
     print_job_table([{'limit', ShowCount}
                     ,{'reduce', 'false'}
-                    ], [], ?FAILED_VIEW),
+                    ]
+                   ,[]
+                   ,?FAILED_VIEW
+                   ),
     io:format(" Total: ~b~n", [Total]),
     'no_return'.
 
@@ -167,15 +174,15 @@ failed(ShowCount, _Details) ->
 %%------------------------------------------------------------------------------
 -spec failed_by_type(kz_term:ne_binary()) -> 'no_return'.
 failed_by_type(Type) ->
-    Total = get_total([{startkey, [Type, 0]}
-                      ,{endkey, [Type, kz_time:now_s()]}
+    Total = get_total([{'startkey', [Type, 0]}
+                      ,{'endkey', [Type, kz_time:now_s()]}
                       ,{'group_level', 1}
                       ,'reduce'
                       ], ?FAILED_TYPE_VIEW),
-    ViewOptions = [{startkey, [Type, 0]}
-                  ,{endkey, [Type, kz_time:now_s()]}
-                  ,{reduce, false}
-                  ,{limit, 100}
+    ViewOptions = [{'startkey', [Type, 0]}
+                  ,{'endkey', [Type, kz_time:now_s()]}
+                  ,{'reduce', 'false'}
+                  ,{'limit', 100}
                   ],
     print_job_table(ViewOptions, [], ?FAILED_TYPE_VIEW),
     io:format(" Total: ~b~n", [Total]),
@@ -224,15 +231,15 @@ delete(Id) ->
 -spec delete_older_than(kz_time:gregorian_seconds()) -> 'no_return'.
 delete_older_than(Timestamp) ->
     TsTamp = kz_term:to_integer(Timestamp),
-    ViewOptions = [{startkey, [0]}
-                  ,{endkey, [TsTamp]}
+    ViewOptions = [{'startkey', [0]}
+                  ,{'endkey', [TsTamp]}
                   ],
     ToBeDeleted = case kz_datamgr:get_results(?KZ_PENDING_NOTIFY_DB, <<"pending_notify/pending_range">>, ViewOptions) of
-                      {ok, []} ->
+                      {'ok', []} ->
                           io:format("no notification older than ~b has been found~n", [TsTamp]),
                           [];
-                      {ok, JObjs} -> [kz_doc:id(JObj) || JObj <- JObjs];
-                      {error, _Reason} ->
+                      {'ok', JObjs} -> [kz_doc:id(JObj) || JObj <- JObjs];
+                      {'error', _Reason} ->
                           io:format("failed to found notifications: ~p~n", [_Reason]),
                           []
                   end,
@@ -243,15 +250,15 @@ delete_older_than(Timestamp) ->
 delete_between(StartTimestamp, EndTimestamp) ->
     Start = kz_term:to_integer(StartTimestamp),
     End = kz_term:to_integer(EndTimestamp),
-    ViewOptions = [{startkey, [Start]}
-                  ,{endkey, [End]}
+    ViewOptions = [{'startkey', [Start]}
+                  ,{'endkey', [End]}
                   ],
     ToBeDeleted = case kz_datamgr:get_results(?KZ_PENDING_NOTIFY_DB, <<"pending_notify/pending_range">>, ViewOptions) of
-                      {ok, []} ->
+                      {'ok', []} ->
                           io:format("no notification between start timestamp ~b and end timestamp ~b has been found~n", [Start, End]),
                           [];
-                      {ok, JObjs} -> [kz_doc:id(JObj) || JObj <- JObjs];
-                      {error, _Reason} ->
+                      {'ok', JObjs} -> [kz_doc:id(JObj) || JObj <- JObjs];
+                      {'error', _Reason} ->
                           io:format("failed to found notifications: ~p~n", [_Reason]),
                           []
                   end,

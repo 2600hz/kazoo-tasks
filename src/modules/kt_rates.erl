@@ -1,5 +1,5 @@
 %%%-----------------------------------------------------------------------------
-%%% @copyright (C) 2013-2021, 2600Hz
+%%% @copyright (C) 2013-2023, 2600Hz
 %%% @doc
 %%% @author Sergey Korobkov
 %%%
@@ -368,7 +368,7 @@ save_rates(Db, Rates) ->
             lager:debug("failed to saved ~b rates to reatedeck ~s", [length(Rates), Db])
     end.
 
--spec maybe_override_rate(kz_term:ne_binary(), kz_json:object()) -> kz_json:objects().
+-spec maybe_override_rate(kz_term:ne_binary(), kz_json:objects()) -> kz_json:objects().
 maybe_override_rate(Db, Rates) ->
     Ids = [kz_doc:id(JObj) || JObj <- Rates],
     case kz_datamgr:open_docs(Db, Ids) of
@@ -433,7 +433,7 @@ group_by_prefix(JObjs) ->
                ,JObjs
                ).
 
--spec log_not_found(integer(), kz_json:object(), 'ok') -> 'ok'.
+-spec log_not_found(integer(), kz_json:objects(), 'ok') -> 'ok'.
 log_not_found(_Prefix, JObjs, 'ok') ->
     lists:foreach(fun log_not_found/1, JObjs).
 

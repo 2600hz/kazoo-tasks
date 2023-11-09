@@ -1,5 +1,5 @@
 %%%-----------------------------------------------------------------------------
-%%% @copyright (C) 2011-2020, 2600Hz
+%%% @copyright (C) 2011-2023, 2600Hz
 %%% @doc
 %%% @author Karl Anderson
 %%% @author James Aimonetti
@@ -26,6 +26,10 @@
        ,kapps_config:get_is_true(?CONFIG_CAT, <<"should_archive_modbs">>, 'false')
        ).
 
+-define(ARCHIVE_MODB_BEFORE_DELETE
+       ,kapps_config:get_is_true(?CONFIG_CAT, <<"archive_modb_before_delete">>, 'true')
+       ).
+
 %%%=============================================================================
 %%% API
 %%%=============================================================================
@@ -45,4 +49,4 @@ init() ->
 
 -spec clean_modb(kz_term:ne_binary()) -> 'ok'.
 clean_modb(AccountMODb) ->
-    kazoo_modb:maybe_archive_modb(AccountMODb).
+    kazoo_modb:maybe_archive_modb(AccountMODb, ?ARCHIVE_MODB_BEFORE_DELETE).

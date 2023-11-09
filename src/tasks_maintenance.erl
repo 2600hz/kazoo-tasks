@@ -1,5 +1,5 @@
 %%%-----------------------------------------------------------------------------
-%%% @copyright (C) 2016-2021, 2600Hz
+%%% @copyright (C) 2016-2023, 2600Hz
 %%% @doc
 %%% @author Pierre Fenoll
 %%%
@@ -31,6 +31,7 @@
 
 -include("tasks.hrl").
 
+-elvis([{elvis_style, no_debug_call, disable}]).
 
 %%% API
 
@@ -132,16 +133,16 @@ remove(TaskId) ->
         {'error', Reason} -> print_error(Reason)
     end.
 
--spec start_cleanup_pass() -> no_return.
+-spec start_cleanup_pass() -> 'no_return'.
 start_cleanup_pass() ->
     _ = kz_process:spawn(fun kt_compactor:browse_dbs_for_triggers/1, [?MODULE]),
     io:format("cleanup pass started~n"),
-    no_return.
+    'no_return'.
 
--spec cleanup_soft_deletes(kz_term:text()) -> no_return.
+-spec cleanup_soft_deletes(kz_term:text()) -> 'no_return'.
 cleanup_soft_deletes(Account) ->
     _ = kt_cleanup:cleanup_soft_deletes(Account),
-    no_return.
+    'no_return'.
 
 -spec register_views() -> 'ok'.
 register_views() ->
@@ -208,7 +209,7 @@ print_error(Reason) ->
     io:format("ERROR: ~p\n", [Reason]),
     'no_return'.
 
--spec attachment(kz_tasks:id(), kz_term:ne_binary()) -> no_return.
+-spec attachment(kz_tasks:id(), kz_term:ne_binary()) -> 'no_return'.
 attachment(TaskId, AName) ->
     case kz_tasks:read(TaskId) of
         {'ok', _JObj} ->

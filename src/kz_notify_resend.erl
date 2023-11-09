@@ -1,5 +1,5 @@
 %%%-----------------------------------------------------------------------------
-%%% @copyright (C) 2010-2020, 2600Hz
+%%% @copyright (C) 2010-2023, 2600Hz
 %%% @doc
 %%% This Source Code Form is subject to the terms of the Mozilla Public
 %%% License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -174,9 +174,9 @@ handle_call(_Request, _From, State) ->
 -spec handle_cast(any(), state()) -> kz_types:handle_cast_ret_state(state()).
 handle_cast('next_cycle', State) ->
     {'noreply', State#state{running=[], timer_ref = set_timer()}};
-handle_cast(stop, State) ->
+handle_cast('stop', State) ->
     lager:debug("notify resend has been stopped"),
-    {stop, normal, State};
+    {'stop', 'normal', State};
 handle_cast(_Msg, State) ->
     lager:debug("unhandled cast: ~p", [_Msg]),
     {'noreply', State}.
@@ -283,10 +283,10 @@ send_notification(JObj, #{'succeeded' := Succeeded}=Map) ->
     end.
 
 -spec call_collect(kz_term:api_terms(), kz_term:api_atom()) -> kz_amqp_worker:request_return().
-call_collect(_API, undefined) -> 'ok';
-call_collect(undefined, _) -> 'ok';
+call_collect(_API, 'undefined') -> 'ok';
+call_collect('undefined', _) -> 'ok';
 call_collect(API, PublishFun) ->
-    kz_amqp_worker:call_collect(kz_json:recursive_to_proplist(API)
+    kz_amqp_worker:call_collect(API
                                ,fun kapi_notifications:PublishFun/1
                                ,fun kapps_notify_publisher:collecting/1
                                ,?PUBLISH_TIMEOUT
@@ -410,7 +410,7 @@ fudge_retry_after(0) -> ?DEFAULT_RETRY_PERIOD;
 fudge_retry_after(Attempts) -> Attempts * ?DEFAULT_RETRY_PERIOD.
 
 -spec map_to_publish_fun(kz_term:api_binary()) -> kz_term:api_atom().
-map_to_publish_fun(undefined) -> undefined;
+map_to_publish_fun('undefined') -> 'undefined';
 map_to_publish_fun(Type) ->
     kz_term:to_atom(<<"publish_", Type/binary>>, 'true').
 

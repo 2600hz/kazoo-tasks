@@ -1,5 +1,5 @@
 %%%-----------------------------------------------------------------------------
-%%% @copyright (C) 2016-2020, 2600Hz
+%%% @copyright (C) 2016-2023, 2600Hz
 %%% @doc Schedule one-off tasks
 %%% @author Pierre Fenoll
 %%%
@@ -442,7 +442,7 @@ handle_cast({'worker_error', TaskId}, State) ->
     State2 = remove_last_worker_update(TaskId, State1),
     {'noreply', State2};
 
-handle_cast({worker_update_processed, TaskId, TotalSucceeded, TotalFailed}, State) ->
+handle_cast({'worker_update_processed', TaskId, TotalSucceeded, TotalFailed}, State) ->
     #state{last_worker_update = #{TaskId := LastWorkerUpdate}} = State,
     ProcessedSoFar = (TotalSucceeded + TotalFailed),
     SendUpdate = ProcessedSoFar > (LastWorkerUpdate + ?PROGRESS_AFTER_PROCESSED),

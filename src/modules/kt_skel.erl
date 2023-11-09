@@ -1,5 +1,5 @@
 %%%-----------------------------------------------------------------------------
-%%% @copyright (C) 2016-2020, 2600Hz
+%%% @copyright (C) 2016-2023, 2600Hz
 %%% @doc
 %%% @author Pierre Fenoll
 %%%
@@ -19,8 +19,7 @@
         ]).
 
 %% Verifiers
--export([col2/1
-        ]).
+-export([col2/1]).
 
 %% Appliers
 -export([id1/3
@@ -28,8 +27,7 @@
         ]).
 
 %% Triggerables
--export([my_minute_job/0
-        ]).
+-export([my_minute_job/0]).
 
 -include("tasks.hrl").
 
@@ -90,7 +88,7 @@ col2(?NE_BINARY) -> 'true'.
 %%% Appliers
 
 -spec id1(kz_tasks:extra_args(), kz_tasks:iterator(), kz_tasks:args()) -> kz_tasks:return().
-id1(_ExtraArgs, _IterValue, #{<<"col1">> := undefined}) ->
+id1(_ExtraArgs, _IterValue, #{<<"col1">> := 'undefined'}) ->
     [<<"col1 was not defined">>];
 id1(_ExtraArgs, _IterValue, #{<<"col1">> := Col1}) ->
     [<<"col1 was set to", Col1/binary, "!">>].
@@ -103,7 +101,7 @@ id2(_ExtraArgs, _IterValue, #{<<"col1">> := Col1
 
 %%% Triggerables
 
--spec my_minute_job() -> ok.
+-spec my_minute_job() -> 'ok'.
 my_minute_job() ->
     {_, {_, _Data, _}} = calendar:local_time(),
     lager:debug("executed every minute! (~p)", [_Data]).

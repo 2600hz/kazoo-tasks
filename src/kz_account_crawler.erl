@@ -1,5 +1,5 @@
 %%%-----------------------------------------------------------------------------
-%%% @copyright (C) 2013-2020, 2600Hz
+%%% @copyright (C) 2013-2023, 2600Hz
 %%% @doc
 %%% @author Hesaam Farhang
 %%% @author Pierre Fenoll
@@ -119,7 +119,7 @@ handle_info({'timeout', Ref, _Msg}, #state{cleanup_ref = Ref
                 State#state{cleanup_ref = cleanup_timer()
                            ,account_ids = kz_term:shuffle_list(IDs)
                            };
-            {error, _R} ->
+            {'error', _R} ->
                 lager:warning("unable to list all docs in ~s: ~p", [?KZ_ACCOUNTS_DB, _R]),
                 State#state{cleanup_ref = cleanup_cycle_timer()}
         end,
@@ -181,7 +181,7 @@ cleanup_timer() ->
 cleanup_cycle_timer() ->
     erlang:start_timer(?TIME_BETWEEN_WHOLE_CRAWLS, self(), 'ok').
 
--spec crawl_account(kz_term:ne_binary()) -> ok.
+-spec crawl_account(kz_term:ne_binary()) -> 'ok'.
 crawl_account(AccountId) ->
     lager:debug("crawling account ~s", [AccountId]),
     %% do not open the account def in the account db or we will

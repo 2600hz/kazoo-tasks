@@ -10,6 +10,7 @@
 *.app
 .deps.mk*
 .apps.mk*
+.core.mk*
 .deps.mk
 .deps.rules
 .test.deps
@@ -28,6 +29,8 @@
 .settings
 .idea/
 **/.vscode/
+
+erlang_ls.config
 
 sup.bash
 

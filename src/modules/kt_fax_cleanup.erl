@@ -1,5 +1,5 @@
 %%%-----------------------------------------------------------------------------
-%%% @copyright (C) 2010-2020, 2600Hz
+%%% @copyright (C) 2010-2023, 2600Hz
 %%% @doc
 %%% This Source Code Form is subject to the terms of the Mozilla Public
 %%% License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -107,12 +107,12 @@ handle_doc(Doc, 'false', State) ->
 %%------------------------------------------------------------------------------
 -spec fetch_fax_docs(map()) -> {kz_json:objects(), map()}.
 fetch_fax_docs(#{<<"start_key">> := 'undefined'}=State) ->
-    Options = [{'page_size', ?PAGE_SIZE}, include_docs],
+    Options = [{'page_size', ?PAGE_SIZE}, 'include_docs'],
     fetch_fax_docs(State, Options);
 fetch_fax_docs(#{<<"start_key">> := StartKey}=State) ->
     Options = [{'page_size', ?PAGE_SIZE}
               ,{'startkey', StartKey}
-              ,include_docs
+              ,'include_docs'
               ],
     fetch_fax_docs(State, Options).
 

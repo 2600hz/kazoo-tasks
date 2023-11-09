@@ -1,5 +1,5 @@
 %%%-----------------------------------------------------------------------------
-%%% @copyright (C) 2010-2020, 2600Hz
+%%% @copyright (C) 2010-2023, 2600Hz
 %%% @doc
 %%% @author Pierre Fenoll
 %%%
@@ -87,7 +87,7 @@ rows_for_missing_eom_test() ->
           ,<<"category">> => <<"branding">>
           ,<<"item">> => <<"whitelabel">>
           ,<<"quantity_bom">> => <<"0">>
-          ,<<"quantity_eom">> => undefined
+          ,<<"quantity_eom">> => 'undefined'
           }
         ,#{<<"account_id">> => AccountId
           ,<<"year">> => YYYY
@@ -95,7 +95,7 @@ rows_for_missing_eom_test() ->
           ,<<"category">> => <<"ips">>
           ,<<"item">> => <<"dedicated">>
           ,<<"quantity_bom">> => <<"0">>
-          ,<<"quantity_eom">> => undefined
+          ,<<"quantity_eom">> => 'undefined'
           }
         ],
     ?assertEqual(Expected, kt_services:rows_for_quantities(AccountId, YYYY, MM, bom_2(), kz_json:new())).
@@ -109,7 +109,7 @@ rows_for_missing_bom_test() ->
           ,<<"month">> => MM
           ,<<"category">> => <<"branding">>
           ,<<"item">> => <<"whitelabel">>
-          ,<<"quantity_bom">> => undefined
+          ,<<"quantity_bom">> => 'undefined'
           ,<<"quantity_eom">> => <<"0">>
           }
         ,#{<<"account_id">> => AccountId
@@ -117,7 +117,7 @@ rows_for_missing_bom_test() ->
           ,<<"month">> => MM
           ,<<"category">> => <<"ips">>
           ,<<"item">> => <<"dedicated">>
-          ,<<"quantity_bom">> => undefined
+          ,<<"quantity_bom">> => 'undefined'
           ,<<"quantity_eom">> => <<"0">>
           }
         ],
@@ -148,7 +148,7 @@ rows_for_bom_and_eom_test() ->
           ,<<"month">> => MM
           ,<<"category">> => <<"number_services">>
           ,<<"item">> => <<"local">>
-          ,<<"quantity_bom">> => undefined
+          ,<<"quantity_bom">> => 'undefined'
           ,<<"quantity_eom">> => <<"130">>
           }
         ,#{<<"account_id">> => AccountId
