@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 
 import sys, os, json
 
@@ -30,6 +29,6 @@ def schema_to_header(schema, header_path):
         header_file.write("                          ]).\n\n")
         header_file.write("-endif.\n")
 
-with open(sys.argv[1], 'r') as schema_file:
+with open(sys.argv[1]) as schema_file:
     schema = json.load(schema_file)
     schema_to_header(schema, sys.argv[2])
