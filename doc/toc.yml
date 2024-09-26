@@ -6,7 +6,7 @@
     - 'doc/kazoo_bill_early_task.md'
     - 'doc/kz_notify_resender.md'
     - 'doc/ledger_rollover.md'
-    - 'doc/maintenance.md'
+    # - 'doc/maintenance.md'
     - 'doc/modb_creation.md'
     - 'doc/notify_resend_maintenance.md'
     - 'doc/rates.md'
