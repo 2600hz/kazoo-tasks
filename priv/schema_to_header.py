@@ -1,10 +1,19 @@
 #!/usr/bin/env python3
 
-import sys, os, json
+import sys
+import os
+import json
 
-if len(sys.argv) != 3:
-    print('Usage: ' + sys.argv[0] + ' /path/to/schema.json /path/to/module.hrl')
+if not len(sys.argv) >= 3:
+    print('Usage: ' + sys.argv[0] +
+          ' /path/to/schema.json /path/to/module.hrl')
     exit(0)
+
+
+if len(sys.argv) == 4 and sys.argv[3] == '--no-overwrite':
+    if os.path.isfile(sys.argv[2]):
+        exit(0)
+
 
 def schema_to_header(schema, header_path):
     with open(header_path, 'w') as header_file:
@@ -28,6 +37,7 @@ def schema_to_header(schema, header_path):
             header_file.write("                          ,<<\""+k+"\">>\n")
         header_file.write("                          ]).\n\n")
         header_file.write("-endif.\n")
+
 
 with open(sys.argv[1]) as schema_file:
     schema = json.load(schema_file)

@@ -16,13 +16,14 @@ src/modules/kt_rates.hrl:
 	./priv/schema_to_header.py $(ROOT)/applications/crossbar/priv/couchdb/schemas/rates.json src/modules/kt_rates.hrl
 
 src/task_modules.hrl:
-	./priv/list_task_modules.py
+	$(CWD)/priv/list_task_modules.py
 
 clean: clean-headers
 
 clean-headers:
 	@rm -f src/modules/kt_rates.hrl
 	@rm -f src/task_modules.hrl
+	@rm -f .task_modules
 
 compile-test-direct: headers
 

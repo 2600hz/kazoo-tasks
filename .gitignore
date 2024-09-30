@@ -53,4 +53,5 @@ erlang.mk
 
 /src/modules/kt_rates.hrl
 /src/task_modules.hrl
+/.task_modules
 .apps.mk.*
