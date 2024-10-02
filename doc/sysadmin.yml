@@ -1,1 +1,9 @@
 - "Maintenance Commands": doc/maintenance.md
+- 'doc/compaction.md'
+- 'doc/fax_cleanup.md'
+- 'doc/kazoo_bill_early_task.md'
+- 'doc/kz_notify_resender.md'
+- 'doc/ledger_rollover.md'
+- 'doc/modb_creation.md'
+- 'doc/notify_resend_maintenance.md'
+- 'doc/services_rollover.md'
