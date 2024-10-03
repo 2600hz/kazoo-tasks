@@ -1,3 +1,4 @@
+- 'doc/README.md'
 - "Maintenance Commands": doc/maintenance.md
 - 'doc/compaction.md'
 - 'doc/fax_cleanup.md'
@@ -7,3 +8,5 @@
 - 'doc/modb_creation.md'
 - 'doc/notify_resend_maintenance.md'
 - 'doc/services_rollover.md'
+- 'doc/cdrs.md'
+- 'doc/rates.md'
