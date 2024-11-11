@@ -1,18 +1,18 @@
-# Kazoo Tasks
+# {% BRAND_NAME %} Tasks
 
-Run background jobs on Kazoo clusters.
+Run background jobs on {% BRAND_NAME %} clusters.
 
 Task inputs are CSV, JSON data or nothing at all & generate a CSV output.
 
 ## APIs
 
-Kazoo Tasks has its own Crossbar module implementing a RESTful API over at [cb_tasks](/applications/crossbar/doc/tasks.md).
+{% BRAND_NAME %} Tasks has its own Crossbar module implementing a RESTful API over at [cb_tasks](/applications/crossbar/doc/tasks.md).
 
 There is also a maintenance module whose entry points are [documented here](/applciations/tasks/doc/maintenance.md).
 
 ## Task discovery
 
-The `tasks` application discovers the different kinds of tasks provided by Kazoo applications on a cluster using `tasks_bindings`.
+The `tasks` application discovers the different kinds of tasks provided by {% BRAND_NAME %} applications on a cluster using `tasks_bindings`.
 A task has to bind to `tasks.Category.help`, `tasks.Category.help.Action` & `tasks.Category.Action`.
 
 ### A task's metadata

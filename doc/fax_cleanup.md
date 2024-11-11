@@ -20,7 +20,7 @@ Key | Description | Type | Default
 
 #### Logs
 
-The task currently logs status and changes it makes to the kazoo log file. Logs can be gathered by grepping for `kt_fax_cleanup`.
+The task currently logs status and changes it makes to the {% BRAND_NAME %} log file. Logs can be gathered by grepping for `kt_fax_cleanup`.
 
 ### Fill DB script
 

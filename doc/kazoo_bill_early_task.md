@@ -1,4 +1,4 @@
-# Kazoo Early Bill Tasks
+# {% BRAND_NAME %} Early Bill Tasks
 
 This tasks is send or bill the accounts a configurable days before first of the next billing cycle(first day of the month). This task is triggered everyday.
 

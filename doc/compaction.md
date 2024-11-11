@@ -4,13 +4,13 @@ Because CouchDB/BigCouch uses an append-only file to write changes to, you must 
 
 ## Automatic Compaction
 
-Kazoo allows the cluster operator to enable automatic compaction of all databases. A process will walk the list of known databases (updating each time the process starts again) and check each database against a heuristic to decide whether to compact or not.
+{% BRAND_NAME %} allows the cluster operator to enable automatic compaction of all databases. A process will walk the list of known databases (updating each time the process starts again) and check each database against a heuristic to decide whether to compact or not.
 
 ## System Configuration Schema
 
 #### Schema
 
-Schema for kazoo_couch system_config
+Schema for {% BRAND_NAME %}_couch system_config
 
 
 
