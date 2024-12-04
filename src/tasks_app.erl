@@ -1,5 +1,5 @@
 %%%-----------------------------------------------------------------------------
-%%% @copyright (C) 2016-2023, 2600Hz
+%%% @copyright (C) 2016-2024, 2600Hz
 %%% @doc
 %%% @author Pierre Fenoll
 %%%
@@ -29,6 +29,7 @@ start(_Type, _Args) ->
     _ = kapps_maintenance:refresh(?KZ_TASKS_DB),
     Ok = tasks_sup:start_link(),
     _ = tasks_bindings:init(),
+    _ = tasks_ra_node:start(),
     Ok.
 
 %%------------------------------------------------------------------------------
