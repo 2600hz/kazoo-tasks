@@ -1,5 +1,5 @@
 %%%-----------------------------------------------------------------------------
-%%% @copyright (C) 2013-2023, 2600Hz
+%%% @copyright (C) 2013-2024, 2600Hz
 %%% @doc
 %%% @author Hesaam Farhang
 %%% @author Pierre Fenoll
@@ -27,7 +27,7 @@
 
 -define(SERVER, ?MODULE).
 
--record(state, {cleanup_ref = cleanup_cycle_timer() :: reference()
+-record(state, {cleanup_ref :: 'undefined' | reference()
                ,account_ids = [] :: kz_term:ne_binaries()
                }).
 -type state() :: #state{}.
@@ -79,6 +79,7 @@ check(Account) ->
 init([]) ->
     kz_log:put_callid(?MODULE),
     lager:debug("started ~s", [?MODULE]),
+    self() ! 'acquire_lock',
     {'ok', #state{}}.
 
 %%------------------------------------------------------------------------------
@@ -106,6 +107,21 @@ handle_cast(_Msg, State) ->
 %% @end
 %%------------------------------------------------------------------------------
 -spec handle_info(any(), state()) -> kz_types:handle_info_ret_state(state()).
+handle_info('acquire_lock', State) ->
+    case tasks_ra_coordinator:acquire_task_lock(?MODULE) of
+        {'ok', Leader} ->
+            lager:info("acquired lock on node ~p", [Leader]),
+            {'noreply', State#state{cleanup_ref = cleanup_cycle_timer()}};
+        {'error', Reason} ->
+            case Reason of
+                'already_locked' ->
+                    lager:info("already running on another node");
+                _ ->
+                    lager:info("raft server not able to handle the request with error ~s", [Reason])
+            end,
+            erlang:send_after(?TIME_BETWEEN_WHOLE_CRAWLS, self(), 'acquire_lock'),
+            {'noreply', State}
+    end;
 handle_info({'timeout', Ref, _Msg}, #state{cleanup_ref = Ref
                                           ,account_ids = []
                                           }=State) ->
@@ -121,7 +137,9 @@ handle_info({'timeout', Ref, _Msg}, #state{cleanup_ref = Ref
                            };
             {'error', _R} ->
                 lager:warning("unable to list all docs in ~s: ~p", [?KZ_ACCOUNTS_DB, _R]),
-                State#state{cleanup_ref = cleanup_cycle_timer()}
+                tasks_ra_coordinator:release_task_lock(?MODULE),
+                self() ! 'acquire_lock',
+                State#state{cleanup_ref = 'undefined'}
         end,
     {'noreply', NewState};
 
@@ -130,7 +148,9 @@ handle_info({'timeout', Ref, _Msg}, #state{cleanup_ref = Ref
                                           }=State) ->
     _ = crawl_account(AccountId),
     lager:info("account crawler completed a full crawl"),
-    {'noreply', State#state{cleanup_ref = cleanup_cycle_timer()
+    tasks_ra_coordinator:release_task_lock(?MODULE),
+    self() ! 'acquire_lock',
+    {'noreply', State#state{cleanup_ref = 'undefined'
                            ,account_ids = []
                            }};
 
@@ -155,6 +175,7 @@ handle_info(_Info, State) ->
 %%------------------------------------------------------------------------------
 -spec terminate(any(), state()) -> 'ok'.
 terminate(_Reason, _State) ->
+    tasks_ra_coordinator:release_task_lock(?MODULE),
     lager:debug("~s terminating: ~p", [?MODULE, _Reason]).
 
 %%------------------------------------------------------------------------------

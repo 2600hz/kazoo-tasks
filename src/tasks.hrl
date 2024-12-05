@@ -14,24 +14,10 @@
 -define(WORKER_TASK_MAYBE_OK, <<"internal">>).
 -define(OUTPUT_CSV_HEADER_ERROR, <<"error">>).
 
--define(START_WORKER_RPC_CALL_TIMEOUT_US, 10 * ?MICROSECONDS_IN_SECOND).
--define(TASKS_RA, 'task').
--define(TASKS_SUP, 'tasks_sup').
-
 -define(KZ_TASKS_HRL, 'true').
 
--type task_worker() :: 'kz_tasks_scheduler' | 'tasks_listener' | 'kz_tasks_trigger'
-                     | 'kt_port_request_crawler' | 'kt_number_crawler' | 'kz_account_crawler'
-                     | 'kz_notify_resend' | 'kt_compaction_reporter'.
-
--define(TASK_WORKERS, ['kz_tasks_scheduler',
-                       'tasks_listener',
-                       'kz_tasks_trigger',
-                       'kt_port_request_crawler',
-                       'kt_number_crawler',
-                       'kz_account_crawler',
-                       'kz_notify_resend',
-                       'kt_compaction_reporter'
-                      ]).
+-type task_worker() :: 'tasks_listener' | 'kz_tasks_trigger' | 'kt_port_request_crawler'
+                     | 'kt_number_crawler' | 'kz_account_crawler' | 'kz_notify_resend'.
+-define(TASK_RA_CLUSTER, 'tasks').
 
 -endif.

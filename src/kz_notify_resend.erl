@@ -1,5 +1,5 @@
 %%%-----------------------------------------------------------------------------
-%%% @copyright (C) 2010-2023, 2600Hz
+%%% @copyright (C) 2010-2024, 2600Hz
 %%% @doc
 %%% This Source Code Form is subject to the terms of the Mozilla Public
 %%% License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -27,7 +27,7 @@
 -include("tasks.hrl").
 
 -record(state, {running = [] :: kz_json:objects()
-               ,timer_ref :: reference()
+               ,timer_ref :: 'undefined' | reference()
                }).
 -type state() :: #state{}.
 
@@ -113,7 +113,8 @@ start_link() ->
 init([]) ->
     kz_log:put_callid(?MODULE),
     lager:debug("~s has been started", [?MODULE]),
-    {'ok', #state{timer_ref = set_timer()}}.
+    self() ! 'acquire_lock',
+    {'ok', #state{}}.
 
 -spec stop() -> 'ok'.
 stop() ->
@@ -186,6 +187,21 @@ handle_cast(_Msg, State) ->
 %% @end
 %%------------------------------------------------------------------------------
 -spec handle_info(any(), state()) -> kz_types:handle_info_ret_state(state()).
+handle_info('acquire_lock', State) ->
+    case tasks_ra_coordinator:acquire_task_lock(?MODULE) of
+        {'ok', Leader} ->
+            lager:info("acquired lock on node ~p", [Leader]),
+            {'noreply', State#state{timer_ref = set_timer()}};
+        {'error', Reason} ->
+            case Reason of
+                'already_locked' ->
+                    lager:info("already running on another node");
+                _ ->
+                    lager:info("raft server not able to handle the request with error ~s", [Reason])
+            end,
+            erlang:send_after(?TIME_BETWEEN_CYCLE, self(), 'acquire_lock'),
+            {'noreply', State}
+    end;
 handle_info({'timeout', Ref, _Msg}, #state{timer_ref = Ref}=State) ->
     ViewOptions = [{'startkey', 0}
                   ,{'endkey', kz_time:now_s()}
@@ -196,16 +212,23 @@ handle_info({'timeout', Ref, _Msg}, #state{timer_ref = Ref}=State) ->
     case kz_datamgr:get_results(?KZ_PENDING_NOTIFY_DB, <<"pending_notify/list_by_modified">>, ViewOptions) of
         {'ok', []} ->
             lager:debug("no pending notifications"),
-            {'noreply', State#state{timer_ref = set_timer()}};
+            tasks_ra_coordinator:release_task_lock(?MODULE),
+            self() ! 'acquire_lock',
+            {'noreply', State};
         {'ok', Pendings} ->
             lager:info("processing ~b pending notifications", [length(Pendings)]),
             _ = kz_process:spawn(fun () -> process_then_next_cycle([kz_json:get_value(<<"doc">>, J) || J <- Pendings]) end),
+            tasks_ra_coordinator:release_task_lock(?MODULE),
+            self() ! 'acquire_lock',
             {'noreply', State#state{running=Pendings}};
         {'error', 'not_found'} ->
             lager:error("unable to find pending view, this is not good..."),
+            tasks_ra_coordinator:release_task_lock(?MODULE),
             {'noreply', State#state{timer_ref = set_timer()}};
         {'error', _Reason} ->
             lager:error("failed to find pending notifications jobs: ~p", [_Reason]),
+            tasks_ra_coordinator:release_task_lock(?MODULE),
+            self() ! 'acquire_lock',
             {'noreply', State#state{timer_ref = set_timer()}}
     end;
 handle_info(_Info, State) ->
@@ -222,6 +245,7 @@ handle_info(_Info, State) ->
 %%------------------------------------------------------------------------------
 -spec terminate(any(), state()) -> 'ok'.
 terminate(_Reason, _State) ->
+    tasks_ra_coordinator:release_task_lock(?MODULE),
     lager:debug("~s terminating: ~p", [?MODULE, _Reason]).
 
 %%------------------------------------------------------------------------------

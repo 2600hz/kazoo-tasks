@@ -1,6 +1,6 @@
 %%%-----------------------------------------------------------------------------
 %%% @copyright (C) 2016-2024, 2600Hz
-%%% @doc All gen_server tasks in node cluster will call acquire_task_lock/release_task_lock
+%%% @doc All gen_server task workers in cluster will call acquire_task_lock/release_task_lock
 %%% to take task leadership and execute
 %%% @author Dat Huynh
 %%%
@@ -49,7 +49,7 @@
 start_link() ->
     gen_server:start_link({'local', ?MODULE}, ?MODULE, [], []).
 
--spec acquire_task_lock(task_worker()) -> 'ok' | 'already_locked' | 'timeout'.
+-spec acquire_task_lock(task_worker()) -> {'ok', node()} | {'error', 'already_locked' | 'timeout' | 'noproc'}.
 acquire_task_lock(TaskWorker) ->
     gen_server:call(?SERVER, {'acquire_lock', TaskWorker}).
 
@@ -73,10 +73,10 @@ init([]) ->
 handle_call({'acquire_lock', TaskWorker}, _From, State) ->
     Command = {'acquire', TaskWorker, node()},
     case tasks_ra_action:process_command(Command) of
-        {'ok', Node} ->
-            {'reply', {'ok', Node}, State};
-        {'error', Reason} ->
-            {'reply', Reason, State}
+        {'ok', _Node}=Rep ->
+            {'reply', Rep, State};
+        {'error', _Reason}=Err ->
+            {'reply', Err, State}
     end.
 
 %%------------------------------------------------------------------------------

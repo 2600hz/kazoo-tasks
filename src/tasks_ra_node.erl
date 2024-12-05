@@ -11,69 +11,55 @@
 %%%-----------------------------------------------------------------------------
 -module(tasks_ra_node).
 
--export([start/0, stop/0]).
+-export([start/1, stop/1]).
 
--export([members/0, members/1
-        ,id/0, id/1
+-export([members/1
+        ,id/1
         ,app_nodes/0
-        ,make_ra_conf/1
-        ,maybe_join/0
-        ,join/0
-        ,restart/0
-        ,start_new/0
-        ,delete/0
+        ,make_ra_conf/2
+        ,maybe_join/1
+        ,join/1
+        ,leave_and_force_delete_server/1
+        ,restart/1
+        ,start_new/1
+        ,delete/1
         ,ra_name/0, ra_name/1
-        ,available_nodes/0
+        ,available_nodes/1
         ]).
 
--export([rand_node/0]).
-
 -include("tasks.hrl").
+-type cluster() :: atom().
 
+-define(TASKS_RA_MACHINE, 'tasks_ra').
 -define(TICK_INTERVAL_MS, 20 * ?MILLISECONDS_IN_SECOND).
 
 %%------------------------------------------------------------------------------
 %% @doc
 %% @end
 %%------------------------------------------------------------------------------
-cluster_name() -> <<"tasks">>.
+-spec ra_name() -> 'tasks'.
+ra_name() -> 'tasks'.
 
--spec ra_name() -> 'task'.
-ra_name() -> 'task'.
+-spec ra_name(Cluster) -> Cluster when Cluster :: cluster().
+ra_name(Cluster) -> Cluster.
 
--spec ra_name(non_neg_integer()) -> atom().
-ra_name(0) -> ra_name();
-ra_name(I) -> kz_term:to_atom(io_lib:format("~s~B", [ra_name(), I]), 'true').
+-spec id(Cluster) -> {Cluster, node()} when Cluster :: cluster().
+id(Cluster) -> {ra_name(Cluster), node()}.
 
--spec id() -> {atom(), node()}.
-id() -> {ra_name(), node()}.
+-spec members(Cluster) -> [{Cluster, node()}] when Cluster :: cluster().
+members(Cluster) ->
+    [{ra_name(Cluster), N} || N <- [node() | app_nodes()]].
 
--spec id(non_neg_integer()) -> {atom(), node()}.
-id(0) -> {ra_name(), node()};
-id(I) -> {ra_name(I), node()}.
-
--spec members() -> [{'task', node()}].
-members() ->
-    [{ra_name(), N} || N <- [node() | app_nodes()]].
-
--spec members(non_neg_integer()) -> [{'task', node()}].
-members(I) ->
-    [{ra_name(X), N} || N <- [node() | app_nodes()],
-                        X <- lists:seq(0, I)
-    ].
-
-%% TODO: should be replaced by 'tasks_ra.erl' when completed
 ra_machine() ->
-    {'module', 'tasks_ra', ra_machine_config()}.
+    {'module', ?TASKS_RA_MACHINE, ra_machine_config()}.
 
 ra_machine_config() -> #{}.
 
--spec make_ra_conf({atom(), node()}) -> map().
-make_ra_conf(ServerId) ->
-    ClusterName = cluster_name(),
-    Members = members(),
-    UId = ra:new_uid(ra_lib:to_binary(ClusterName)),
-    #{cluster_name => ClusterName
+-spec make_ra_conf(ra:server_id(), cluster()) -> ra_server:config().
+make_ra_conf(ServerId, Cluster) ->
+    Members = members(Cluster),
+    UId = ra:new_uid(ra_lib:to_binary(Cluster)),
+    #{cluster_name => Cluster
      ,id => ServerId
      ,uid => UId
      ,initial_members => Members
@@ -86,96 +72,94 @@ make_ra_conf(ServerId) ->
 app_nodes() ->
     Nodes = nodes(),
     {Replies, Bad} = rpc:multicall(Nodes, 'kapps_controller', 'list_apps', []),
-    [Node || {Node, Apps} <- lists:zip(Nodes -- Bad, Replies), lists:member(?APP, Apps)].
+    [Node || {Node, Res} <- lists:zip(Nodes -- Bad, Replies), is_app_node(Node, Res)].
 
+-spec is_app_node(node(), kz_term:atoms() | {'badrpc', any()}) -> boolean().
+is_app_node(_, Apps) when is_list(Apps) ->
+    lists:member(?APP, Apps);
+is_app_node(Node, {'badrpc', Reason}) ->
+    lager:info("bad return from ~s checking app_nodes: ~p", [Node, Reason]),
+    'false'.
 
--spec restart() -> boolean().
-restart() ->
-    Name = id(),
+-spec restart(cluster()) -> boolean().
+restart(Cluster) ->
+    Name = id(Cluster),
     case ra:restart_server(Name) of
         'ok' -> 'true';
         {'error', {'already_started', _}} -> 'true';
-        {'error', 'not_started'} -> 'false';
-        {'error', 'name_not_registered'} -> 'false';
-        Err ->
-            lager:warning("recover: ra ~w could not be restarted ~w", [Name, Err]),
-            'false'
+        {'error', 'name_not_registered'} -> 'false'
     end.
 
--spec start() -> any().
-start() ->
-    ra:start(),
-    case restart() of
-        'false' -> maybe_join();
-        _R -> 'ok'
+-spec start(cluster()) -> 'ok'.
+start(Cluster) ->
+    %% ensure_default_ra_system_started(),
+    lager:info("starting ra cluster ~s", [Cluster]),
+    case restart(Cluster) of
+        'false' -> maybe_join(Cluster);
+        'true' -> 'ok'
     end.
 
--spec maybe_join() -> any().
-maybe_join() ->
+%%-spec ensure_default_ra_system_started() -> 'ok'.
+%%ensure_default_ra_system_started() ->
+%%    case ra_system:start_default() of
+%%        {'ok', _Pid} -> 'ok';
+%%        {'error', {'already_started', _Pid}} -> 'ok'
+%%    end.
+
+-spec maybe_join(cluster()) -> 'ok'.
+maybe_join(Cluster) ->
     case app_nodes() of
-        [] ->
-            case start_new() of
-                'ok' ->
-                    _ = start_task_workers(),
-                    'ok';
-                Else -> Else
-            end;
-        _ -> join()
+        [] -> start_new(Cluster);
+        _ -> join(Cluster)
     end.
 
--spec join() -> 'ok' | {'error', any()}.
-join() ->
-    RaConf = make_ra_conf(id()),
-    case ra:start_server(RaConf) of
-        'ok' -> join_add_member();
-        Else -> Else
+-spec join(cluster()) -> 'ok'.
+join(Cluster) ->
+    ServerId = id(Cluster),
+    Members = members(Cluster),
+    RaConf = make_ra_conf(ServerId, Cluster),
+    lager:info("ra joining cluster ~p", [RaConf]),
+    'true' = join_add_member(Members, ServerId),
+    'ok' = ra:start_server(RaConf).
+
+-spec join_add_member([ra:server_id()], ra:server_id()) -> boolean().
+join_add_member(Members, ServerId) ->
+    case ra:add_member(Members -- [ServerId], ServerId) of
+        {'ok', _, _Leader} -> 'true';
+        {'error', {'no_more_servers_to_try', Es}} ->
+            lists:all(fun(E) -> E =:= {'error', 'already_member'} end, Es)
     end.
 
-join_add_member() ->
-    case ra:add_member(members(), id()) of
-        {'ok', _, _Leader} -> 'ok';
-        Else -> Else
-    end.
-
-%% lifted from ra/src/ra.hrl
--type ra_server_id() :: atom() | {Name :: atom(), Node :: node()}.
-
--spec delete() ->
-          {'ok', ra_server_id()} | {'error', term()}.
-delete() ->
-    {'ok', Members, _Leader} = ra:members(ra_name()),
+-spec delete(cluster()) -> {'ok', ra:server_id()} | {'error', any()}.
+delete(Cluster) ->
+    {'ok', Members, _Leader} = ra:members(id(Cluster)),
     ra:delete_cluster(Members).
 
--spec start_new() -> 'ok' | {'error', 'cluster_not_formed'}.
-start_new() ->
-    RaConfs = [make_ra_conf(ServerId) || ServerId <- members()],
-    case ra:start_cluster(RaConfs) of
-        {'ok', _, _} -> 'ok';
-        Else -> Else
-    end.
+-spec leave_and_force_delete_server(cluster()) -> 'ok' | 'timeout' | {'error', 'noproc'}.
+leave_and_force_delete_server(Cluster) ->
+    lager:info("leaving cluster ~s", [Cluster]),
+    ServerId = id(Cluster),
+    {'ok', _Members, Leader} = ra:members(ServerId),
+    %% TODO: double check
+    ra:leave_and_delete_server(Leader, ServerId).
 
--spec stop() -> 'ok' | {'error', 'nodedown'}.
-stop() ->
-    ra:stop_server(id()).
+-spec start_new(cluster()) -> 'ok'.
+start_new(Cluster) ->
+    Members = members(Cluster),
+    RaConfs = [make_ra_conf(ServerId, Cluster) || ServerId <- Members],
+    lager:info("ra starting new cluster ~p", [RaConfs]),
+    {'ok', Members, []} = ra:start_cluster(RaConfs),
+    'ok'.
 
--spec available_nodes() -> [node()].
-available_nodes() ->
-    {'ok', Members, _Leader} = ra:members(ra_name()),
+-spec stop(cluster()) -> 'ok'.
+stop(Cluster) ->
+    %% TODO: https://github.com/rabbitmq/ra/pull/340 fixes a bug where `query_index'
+    %% is not reset, causing consistent queries to hang
+    _ = ra:stop_server(id(Cluster)),
+    _ = ra:process_command(members(Cluster), {'nodedown', node()}),
+    'ok'.
+
+-spec available_nodes(cluster()) -> [node()].
+available_nodes(Cluster) ->
+    {'ok', Members, _Leader} = ra:members(id(Cluster)),
     lists:usort([Node || {_, Node} <- Members, lists:member(Node, nodes())]).
-
--spec rand_node() -> node().
-rand_node() ->
-    rand_node(available_nodes()).
-
--spec rand_node([node()]) -> node().
-rand_node([]) -> node();
-rand_node(Nodes) ->
-    hd(kz_term:shuffle_list(Nodes)).
-
--spec start_task_workers() -> list().
-start_task_workers() ->
-    lists:map(fun(_Mod) ->
-                      %% should be ask ra_coordinator for node leadership
-                      'ok'
-              end
-             ,?TASK_WORKERS).

@@ -1,5 +1,5 @@
 %%%-----------------------------------------------------------------------------
-%%% @copyright (C) 2013-2023, 2600Hz
+%%% @copyright (C) 2013-2024, 2600Hz
 %%% @doc
 %%% @author Peter Defebvre
 %%%
@@ -47,7 +47,7 @@
        ,kapps_config:get_non_neg_integer(?CONFIG_CAT, <<"crawler_timer_ms">>, ?MILLISECONDS_IN_DAY)
        ).
 
--record(state, {cleanup_ref :: reference()}).
+-record(state, {cleanup_ref :: 'undefined' | reference()}).
 -type state() :: #state{}.
 
 %%%=============================================================================
@@ -91,7 +91,8 @@ crawl_numbers() ->
 init([]) ->
     kz_log:put_callid(?MODULE),
     lager:debug("started ~s", [?MODULE]),
-    {'ok', #state{cleanup_ref = cleanup_timer()}}.
+    self() ! 'acquire_lock',
+    {'ok', #state{}}.
 
 %%------------------------------------------------------------------------------
 %% @doc Handling call messages.
@@ -118,9 +119,26 @@ handle_cast(_Msg, State) ->
 %% @end
 %%------------------------------------------------------------------------------
 -spec handle_info(any(), state()) -> kz_types:handle_info_ret_state(state()).
+handle_info('acquire_lock', State) ->
+    case tasks_ra_coordinator:acquire_task_lock(?MODULE) of
+        {'ok', Leader} ->
+            lager:info("acquired lock on node ~p", [Leader]),
+            {'noreply', State#state{cleanup_ref = cleanup_timer()}};
+        {'error', Reason} ->
+            case Reason of
+                'already_locked' ->
+                    lager:info("already running on another node");
+                _ ->
+                    lager:info("raft server not able to handle the request with error ~s", [Reason])
+            end,
+            erlang:send_after(?TIME_BETWEEN_CRAWLS, self(), 'acquire_lock'),
+            {'noreply', State}
+    end;
 handle_info({'timeout', Ref, _Msg}, #state{cleanup_ref=Ref}=State) ->
     _ = kz_process:spawn(fun crawl_numbers/0),
-    {'noreply', State#state{cleanup_ref=cleanup_timer()}};
+    tasks_ra_coordinator:release_task_lock(?MODULE),
+    self() ! 'acquire_lock',
+    {'noreply', State#state{cleanup_ref = 'undefined'}};
 handle_info(_Msg, State) ->
     lager:debug("unhandled msg: ~p", [_Msg]),
     {'noreply', State}.
@@ -134,6 +152,7 @@ handle_info(_Msg, State) ->
 %%------------------------------------------------------------------------------
 -spec terminate(any(), state()) -> 'ok'.
 terminate(_Reason, _State) ->
+    tasks_ra_coordinator:release_task_lock(?MODULE),
     lager:debug("~s terminating: ~p", [?MODULE, _Reason]).
 
 %%------------------------------------------------------------------------------

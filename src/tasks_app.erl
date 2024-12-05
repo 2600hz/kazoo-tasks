@@ -29,7 +29,7 @@ start(_Type, _Args) ->
     _ = kapps_maintenance:refresh(?KZ_TASKS_DB),
     Ok = tasks_sup:start_link(),
     _ = tasks_bindings:init(),
-    _ = tasks_ra_node:start(),
+    _ = tasks_ra_node:maybe_join(?TASK_RA_CLUSTER),
     Ok.
 
 %%------------------------------------------------------------------------------

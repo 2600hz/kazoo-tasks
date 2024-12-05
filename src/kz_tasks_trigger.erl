@@ -1,5 +1,5 @@
 %%%-----------------------------------------------------------------------------
-%%% @copyright (C) 2016-2023, 2600Hz
+%%% @copyright (C) 2016-2024, 2600Hz
 %%% @doc Trigger jobs for execution
 %%% @author Pierre Fenoll
 %%%
@@ -35,10 +35,10 @@
 
 -define(SERVER, ?MODULE).
 
--record(state, {minute_ref = minute_timer() :: reference()
-               ,hour_ref = hour_timer() :: reference()
-               ,day_ref = day_timer() :: reference()
-               ,browse_dbs_ref = browse_dbs_timer() :: reference() %%TODO: gen_listen for DB news!
+-record(state, {minute_ref :: 'undefined' | reference()
+               ,hour_ref :: 'undefined' | reference()
+               ,day_ref :: 'undefined' | reference()
+               ,browse_dbs_ref :: 'undefined' | reference() %%TODO: gen_listen for DB news!
                }).
 
 -type state() :: #state{}.
@@ -80,6 +80,7 @@ init([]) ->
     _ = process_flag('trap_exit', 'true'),
     kz_log:put_callid(?MODULE),
     lager:debug("started ~s", [?MODULE]),
+    self() ! 'acquire_lock',
     {'ok', #state{}}.
 
 %%------------------------------------------------------------------------------
@@ -121,6 +122,26 @@ handle_cast(_Msg, State) ->
 %% @end
 %%------------------------------------------------------------------------------
 -spec handle_info(any(), state()) -> kz_types:handle_info_ret_state(state()).
+handle_info('acquire_lock', State) ->
+    case tasks_ra_coordinator:acquire_task_lock(?MODULE) of
+        {'ok', Leader} ->
+            lager:info("acquired lock on node ~p", [Leader]),
+            {'noreply', State#state{minute_ref = minute_timer()
+                                   ,hour_ref = hour_timer()
+                                   ,day_ref = day_timer()
+                                   ,browse_dbs_ref = browse_dbs_timer()}};
+        {'error', Reason} ->
+            case Reason of
+                'already_locked' ->
+                    lager:info("already running on another node, terminate this process"),
+                    {'noreply', State, 'hibernate'};
+                _ ->
+                    erlang:send_after(?MILLISECONDS_IN_SECOND, self(), 'acquire_lock'),
+                    lager:info("raft server not able to handle the request with error ~s", [Reason]),
+                    {'noreply', State}
+            end
+
+    end;
 handle_info({'EXIT', _Pid, 'normal'}, State) ->
     lager:debug("job ~p terminated normally", [_Pid]),
     {'noreply', State};
@@ -158,6 +179,7 @@ handle_info(_Info, State) ->
 %%------------------------------------------------------------------------------
 -spec terminate(any(), state()) -> 'ok'.
 terminate(_Reason, _State) ->
+    tasks_ra_coordinator:release_task_lock(?MODULE),
     lager:debug("~s terminating: ~p", [?MODULE, _Reason]).
 
 %%------------------------------------------------------------------------------

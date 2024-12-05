@@ -1,5 +1,5 @@
 %%%-----------------------------------------------------------------------------
-%%% @copyright (C) 2016-2023, 2600Hz
+%%% @copyright (C) 2016-2024, 2600Hz
 %%% @doc
 %%% @author Pierre Fenoll
 %%%
@@ -20,7 +20,8 @@
 -define(SERVER, ?MODULE).
 
 %% Helper macro for declaring children of supervisor
--define(CHILDREN, [?WORKER('kz_tasks_scheduler')
+-define(CHILDREN, [?WORKER('tasks_ra_coordinator')
+                  ,?WORKER('kz_tasks_scheduler')
                   ,?WORKER('tasks_listener')
                    %% Jobs not generating CSV output
                   ,?WORKER('kz_tasks_trigger')
