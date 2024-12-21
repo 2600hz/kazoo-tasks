@@ -6,9 +6,9 @@ Task inputs are CSV, JSON data or nothing at all & generate a CSV output.
 
 ## APIs
 
-{% BRAND_NAME %} Tasks has its own Crossbar module implementing a RESTful API over at [cb_tasks](/applications/crossbar/doc/tasks.md).
+{% BRAND_NAME %} Tasks has its own Crossbar module implementing a RESTful API over at [Tasks API](https://docs.2600hz.com/git/2600hz/kazoo-crossbar/doc/tasks.md).
 
-There is also a maintenance module whose entry points are [documented here](/applciations/tasks/doc/maintenance.md).
+The maintenance command is provided to system adminstrators in [tasks_maintenance](./maintenance.md) SUP command.
 
 ## Task discovery
 
@@ -92,8 +92,8 @@ The function must return a valid instance of the type `kz_tasks:return()`:
 
 Examples of both kinds of tasks can be found in
 
-* [kt_numbers](https://github.com/2600hz/kazoo/blob/master/applications/tasks/src/modules/kt_numbers.erl)
-* [kt_services](https://github.com/2600hz/kazoo/blob/master/applications/tasks/src/modules/kt_services.erl)
+* `kt_numbers.erl`
+* `kt_services.erl`
 
 ## Task statuses
 
@@ -147,7 +147,7 @@ init() ->
     _ = tasks_bindings:bind(?TRIGGER_ALL_DBS, ?MODULE, 'handle_database').
 ```
 
-Find the trigger macros in [the tasks header](https://github.com/2600hz/kazoo/blob/master/applications/tasks/src/tasks.hrl). This particular example will bind the module's `handle_database/1` to be run each time a database is processed by the [`kz_tasks_trigger`](https://github.com/2600hz/kazoo/blob/master/applications/tasks/src/kz_tasks_trigger.erl) process.
+Find the trigger macros in the `tasks.hrl`. This particular example will bind the module's `handle_database/1` to be run each time a database is processed by the `kz_tasks_trigger` process.
 
 Cron triggers will need an arity-0 function to callback to; database triggers call an arity-1 function.
 

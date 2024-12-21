@@ -26,6 +26,6 @@ The task currently logs status and changes it makes to the {% BRAND_NAME %} log 
 
 A python script was written to test this. The script fills the faxes db of the target couchdb with dummy fax docs containing randomized dates and other values.
 
-This script can be found in [community-scripts](https://github.com/2600hz/community-scripts/tree/master/fill_fax_db).
+This script can be found on GitHub at [community-scripts](https://github.com/2600hz/community-scripts/tree/master/fill_fax_db).
 
 

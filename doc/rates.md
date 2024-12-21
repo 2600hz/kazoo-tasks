@@ -34,7 +34,7 @@ Name | Description | Required
 `caller_id_numbers`|string of caller id prefixes separated by ":". For ex.: 441:442:443 It will be converted into ["^\\+?441.+$", "^\\+?442.+$", "^\\+?443.+$"]|
 `routes`|string of either a single route "^\\+?44.+$" or a json array string '["^\\\\+?123$","^\\\\+?456$"]'|
 
-CSV files for all actions use the same list of fields. Names of fields match the names of keys in the CouchDB [rate document](../../crossbar/doc/rates.md#schema).
+CSV files for all actions use the same list of fields. Names of fields match the names of keys in the rate [JSON Schema object](https://docs.2600hz.com/git/2600hz/kazoo-crossbar/doc/rates.md#schema).
 
 !!! note
     For `import` and `delete` actions, value of `account_id` from CSV file will be ignored, value for this field is taken from task Account-ID .
@@ -182,7 +182,7 @@ curl -v -X GET \
 
 When `data.status` changes from `executing`, the task is completed.
 
-Once the rate import is done, check out the [rates API](../../crossbar/doc/rates.md) to see how to rate a DID via the API.
+Once the rate import is done, check out the [Rates API](https://docs.2600hz.com/git/2600hz/kazoo-crossbar/doc/rates.md) to see how to rate a DID via the API.
 
 !!! note
     By default, there is a generous pause built into the system to avoid overloading the system. You can speed up task processing by decreasing the pause, in milliseconds (at the expense of more database load): `sup kapps_config set_default tasks wait_after_row_ms 100`
