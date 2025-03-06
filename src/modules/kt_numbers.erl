@@ -1,5 +1,5 @@
 %%%-----------------------------------------------------------------------------
-%%% @copyright (C) 2016-2023, 2600Hz
+%%% @copyright (C) 2016-2025, 2600Hz
 %%% @doc
 %%% @author Pierre Fenoll
 %%%
@@ -578,7 +578,7 @@ import(#{'account_id' := Account
               | import_state(AuthAccountId, State)
               ],
     %% FIXME: use knm_numbers, update list_number/1 to use kzd_phone_number
-    Row = handle_result(Args, knm_ops:create(E164, Options)),
+    Row = handle_result(Args, knm_ops:create([E164], Options)),
     {Row, sets:add_element(AccountId, AccountIds)}.
 
 public_fields(Args) -> kz_json:from_list(lists:flatten(pub_fields(Args))).
