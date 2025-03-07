@@ -1,5 +1,5 @@
 %%%-----------------------------------------------------------------------------
-%%% @copyright (C) 2016-2023, 2600Hz
+%%% @copyright (C) 2016-2025, 2600Hz
 %%% @doc
 %%% @author Pierre Fenoll
 %%%
@@ -482,7 +482,7 @@ list_all(_, Todo) ->
 -spec find(kz_tasks:extra_args(), kz_tasks:iterator(), kz_tasks:args()) -> kz_tasks:return().
 find(#{'auth_account_id' := AuthBy}, _IterValue, Args=#{<<"e164">> := Num}) ->
     %% FIXME: use knm_numbers, update list_number/1 to use kzd_phone_number
-    handle_result(Args, knm_ops:get(Num, [{'auth_by', AuthBy}])).
+    handle_result(Args, knm_ops:get([Num], [{'auth_by', AuthBy}])).
 
 -spec dump(kz_tasks:extra_args(), kz_tasks:iterator()) -> kz_tasks:iterator().
 dump(ExtraArgs, 'init') ->
@@ -578,7 +578,7 @@ import(#{'account_id' := Account
               | import_state(AuthAccountId, State)
               ],
     %% FIXME: use knm_numbers, update list_number/1 to use kzd_phone_number
-    Row = handle_result(Args, knm_ops:create(E164, Options)),
+    Row = handle_result(Args, knm_ops:create([E164], Options)),
     {Row, sets:add_element(AccountId, AccountIds)}.
 
 public_fields(Args) -> kz_json:from_list(lists:flatten(pub_fields(Args))).
@@ -691,7 +691,7 @@ assign_to(#{'auth_account_id' := AuthBy, 'account_id' := Account}
               ,{'batch_run', 'true'}
               ],
     %% FIXME: use knm_numbers, update list_number/1 to use kzd_phone_number
-    handle_result(Args, knm_ops:move(Num, AccountId, Options)).
+    handle_result(Args, knm_ops:move([Num], AccountId, Options)).
 
 -spec update_merge(kz_tasks:extra_args(), kz_tasks:iterator(), kz_tasks:args()) -> kz_tasks:return().
 update_merge(#{'auth_account_id' := AuthBy}
@@ -703,7 +703,7 @@ update_merge(#{'auth_account_id' := AuthBy}
               ],
     Updates = [{fun knm_phone_number:update_doc/2, public_fields(Args)}],
     %% FIXME: use knm_numbers, update list_number/1 to use kzd_phone_number
-    handle_result(Args, knm_ops:update(Num, Updates, Options)).
+    handle_result(Args, knm_ops:update([Num], Updates, Options)).
 
 -spec update_overwrite(kz_tasks:extra_args(), kz_tasks:iterator(), kz_tasks:args()) -> kz_tasks:return().
 update_overwrite(#{'auth_account_id' := AuthBy}
@@ -715,7 +715,7 @@ update_overwrite(#{'auth_account_id' := AuthBy}
               ],
     Updates = [{fun knm_phone_number:reset_doc/2, public_fields(Args)}],
     %% FIXME: use knm_numbers, update list_number/1 to use kzd_phone_number
-    handle_result(Args, knm_ops:update(Num, Updates, Options)).
+    handle_result(Args, knm_ops:update([Num], Updates, Options)).
 
 -spec release(kz_tasks:extra_args(), kz_tasks:iterator(), kz_tasks:args()) -> kz_tasks:return().
 release(#{'auth_account_id' := AuthBy}
@@ -726,7 +726,7 @@ release(#{'auth_account_id' := AuthBy}
               ,{'batch_run', 'true'}
               ],
     %% FIXME: use knm_numbers, update list_number/1 to use kzd_phone_number
-    handle_result(Args, knm_ops:release(Num, Options)).
+    handle_result(Args, knm_ops:release([Num], Options)).
 
 -spec reserve(kz_tasks:extra_args(), kz_tasks:iterator(), kz_tasks:args()) -> kz_tasks:return().
 reserve(#{'auth_account_id' := AuthBy, 'account_id' := Account}
@@ -738,7 +738,7 @@ reserve(#{'auth_account_id' := AuthBy, 'account_id' := Account}
               ,{'assign_to', select_account_id(AccountId0, Account)}
               ],
     %% FIXME: use knm_numbers, update list_number/1 to use kzd_phone_number
-    handle_result(Args, knm_ops:reserve(Num, Options)).
+    handle_result(Args, knm_ops:reserve([Num], Options)).
 
 -spec delete(kz_tasks:extra_args(), kz_tasks:iterator(), kz_tasks:args()) -> kz_tasks:return().
 delete(#{'auth_account_id' := AuthBy}
@@ -749,7 +749,7 @@ delete(#{'auth_account_id' := AuthBy}
               ,{'batch_run', 'true'}
               ],
     %% FIXME: use knm_numbers, update list_number/1 to use kzd_phone_number
-    handle_result(Args, knm_ops:delete(Num, Options)).
+    handle_result(Args, knm_ops:delete([Num], Options)).
 
 -spec sync(kz_tasks:extra_args(), kz_tasks:iterator()) -> kz_tasks:iterator().
 sync(#{'account_id' := Account}, 'init') ->
