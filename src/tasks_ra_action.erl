@@ -1,5 +1,5 @@
 %%%-----------------------------------------------------------------------------
-%%% @copyright (C) 2016-2024, 2600Hz
+%%% @copyright (C) 2016-2025, 2600Hz
 %%% @doc
 %%% @author Dat Huynh
 %%%
@@ -16,7 +16,6 @@
         ,pipeline_command/1
         ,leader_query/0
         ,local_query/0
-
         ]).
 
 -include("tasks.hrl").

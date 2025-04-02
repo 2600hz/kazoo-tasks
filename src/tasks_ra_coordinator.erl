@@ -1,5 +1,5 @@
 %%%-----------------------------------------------------------------------------
-%%% @copyright (C) 2016-2024, 2600Hz
+%%% @copyright (C) 2016-2025, 2600Hz
 %%% @doc All gen_server task workers in cluster will call acquire_task_lock/release_task_lock
 %%% to take task leadership and execute
 %%% @author Dat Huynh
